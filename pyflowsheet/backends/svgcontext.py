@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from math import cos, radians, sin
 
@@ -197,6 +199,48 @@ class SvgContext:
             path.set_markers((None, False, self.marker))
         self.g.add(path)
         return
+
+    def raw_path(
+        self,
+        d_string: str,
+        fillColor=None,
+        lineColor: tuple[int, int, int, int] = (0, 0, 0, 255),
+        lineSize: float = 2.0,
+        dashArray: str | None = None,
+        endMarker: bool = False,
+    ):
+        """Appends an SVG path element with an explicit path data `d` attribute string."""
+        path = svgwrite.path.Path(
+            d=d_string,
+            stroke=f"rgb{lineColor[0:3]}",
+            stroke_width=lineSize,
+        )
+        if fillColor is not None:
+            path.attribs["fill"] = f"rgb{fillColor[0:3]}"
+        else:
+            path.attribs["fill"] = "none"
+
+        if dashArray is not None:
+            path.attribs["stroke-dasharray"] = dashArray
+
+        if endMarker:
+            path.set_markers((None, False, self.marker))
+
+        coords = [
+            (float(x), float(y))
+            for x, y in re.findall(r"[ML]\s*([-+]?\d*\.?\d+)[\s,]+([-+]?\d*\.?\d+)", d_string)
+        ]
+        if coords:
+            minx = min(p[0] for p in coords)
+            maxx = max(p[0] for p in coords)
+            miny = min(p[1] for p in coords)
+            maxy = max(p[1] for p in coords)
+            self._updateBounds([(minx, miny), (maxx, maxy)])
+
+        if self.g is not None:
+            self.g.add(path)
+        else:
+            self.dwg.add(path)
 
     def chord(
         self,
