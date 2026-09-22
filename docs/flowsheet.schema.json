@@ -1,0 +1,871 @@
+{
+  "$defs": {
+    "ComponentsSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "equipment": {
+          "items": {
+            "$ref": "#/$defs/EquipmentSchema"
+          },
+          "title": "Equipment",
+          "type": "array"
+        },
+        "stream_flags": {
+          "items": {
+            "$ref": "#/$defs/EquipmentSchema"
+          },
+          "title": "Stream Flags",
+          "type": "array"
+        },
+        "units": {
+          "items": {
+            "$ref": "#/$defs/EquipmentSchema"
+          },
+          "title": "Units",
+          "type": "array"
+        },
+        "pumps": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Pumps",
+          "type": "array"
+        },
+        "valves": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Valves",
+          "type": "array"
+        },
+        "instrumentation": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Instrumentation",
+          "type": "array"
+        }
+      },
+      "title": "ComponentsSchema",
+      "type": "object"
+    },
+    "EquipmentSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "type": {
+          "default": "Vessel",
+          "title": "Type",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "position": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "size": {
+          "default": [
+            40.0,
+            40.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "rotation": {
+          "default": 0.0,
+          "title": "Rotation",
+          "type": "number"
+        },
+        "flip_horizontal": {
+          "default": false,
+          "title": "Flip Horizontal",
+          "type": "boolean"
+        },
+        "flip_vertical": {
+          "default": false,
+          "title": "Flip Vertical",
+          "type": "boolean"
+        },
+        "cap_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cap Length"
+        },
+        "internals": {
+          "items": {
+            "$ref": "#/$defs/InternalSchema"
+          },
+          "title": "Internals",
+          "type": "array"
+        },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/PortSchema"
+          },
+          "title": "Ports",
+          "type": "array"
+        },
+        "text_anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextAnchorSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "EquipmentSchema",
+      "type": "object"
+    },
+    "InternalSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "InternalSchema",
+      "type": "object"
+    },
+    "MetadataRevisionSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "rev": {
+          "title": "Rev",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "zone": {
+          "default": "-",
+          "title": "Zone",
+          "type": "string"
+        },
+        "date": {
+          "default": "",
+          "title": "Date",
+          "type": "string"
+        },
+        "approved_by": {
+          "default": "",
+          "title": "Approved By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rev"
+      ],
+      "title": "MetadataRevisionSchema",
+      "type": "object"
+    },
+    "MetadataSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "default": "FLOWSHEET",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "Process Flow Diagram",
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "drawing_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Drawing Number"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "sheet_size": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sheet Size"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale"
+        },
+        "sheet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sheet"
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization"
+        },
+        "project": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Units"
+        },
+        "drawn_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Drawn By"
+        },
+        "drawn_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Drawn Date"
+        },
+        "checked_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checked By"
+        },
+        "checked_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checked Date"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "approved_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved Date"
+        },
+        "qa_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qa By"
+        },
+        "qa_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qa Date"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "revisions": {
+          "items": {
+            "$ref": "#/$defs/MetadataRevisionSchema"
+          },
+          "title": "Revisions",
+          "type": "array"
+        }
+      },
+      "title": "MetadataSchema",
+      "type": "object"
+    },
+    "PortSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "position": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "normal": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Normal",
+          "type": "array"
+        },
+        "intent": {
+          "default": "in",
+          "enum": [
+            "in",
+            "out"
+          ],
+          "title": "Intent",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "normal"
+      ],
+      "title": "PortSchema",
+      "type": "object"
+    },
+    "StreamAssociatedComponentsSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "pumps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pumps",
+          "type": "array"
+        },
+        "valves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Valves",
+          "type": "array"
+        },
+        "instruments": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Instruments",
+          "type": "array"
+        },
+        "line_sequence": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Line Sequence",
+          "type": "array"
+        }
+      },
+      "title": "StreamAssociatedComponentsSchema",
+      "type": "object"
+    },
+    "StreamEndpointSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "port": {
+          "title": "Port",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "port"
+      ],
+      "title": "StreamEndpointSchema",
+      "type": "object"
+    },
+    "StreamSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "from": {
+          "$ref": "#/$defs/StreamEndpointSchema"
+        },
+        "to": {
+          "$ref": "#/$defs/StreamEndpointSchema"
+        },
+        "manual_routing": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Manual Routing",
+          "type": "array"
+        },
+        "label_offset": {
+          "default": [
+            0.0,
+            10.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Label Offset",
+          "type": "array"
+        },
+        "associated_components": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamAssociatedComponentsSchema"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Associated Components"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to"
+      ],
+      "title": "StreamSchema",
+      "type": "object"
+    },
+    "TableSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "position": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "size": {
+          "default": [
+            40.0,
+            20.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "data": {
+          "items": {
+            "items": {},
+            "type": "array"
+          },
+          "title": "Data",
+          "type": "array"
+        },
+        "figsize": {
+          "default": [
+            5.0,
+            5.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Figsize",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "TableSchema",
+      "type": "object"
+    },
+    "TextAnchorSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "horizontal": {
+          "default": "Center",
+          "enum": [
+            "Center",
+            "Left",
+            "Right",
+            "LeftOuter",
+            "RightOuter"
+          ],
+          "title": "Horizontal",
+          "type": "string"
+        },
+        "vertical": {
+          "default": "Bottom",
+          "enum": [
+            "Center",
+            "Top",
+            "Bottom"
+          ],
+          "title": "Vertical",
+          "type": "string"
+        },
+        "offset": {
+          "default": [
+            0.0,
+            20.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Offset",
+          "type": "array"
+        }
+      },
+      "title": "TextAnchorSchema",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/MetadataSchema"
+    },
+    "components": {
+      "$ref": "#/$defs/ComponentsSchema"
+    },
+    "streams": {
+      "items": {
+        "$ref": "#/$defs/StreamSchema"
+      },
+      "title": "Streams",
+      "type": "array"
+    },
+    "tables": {
+      "items": {
+        "$ref": "#/$defs/TableSchema"
+      },
+      "title": "Tables",
+      "type": "array"
+    },
+    "settings": {
+      "additionalProperties": true,
+      "title": "Settings",
+      "type": "object"
+    }
+  },
+  "title": "FlowsheetSchema",
+  "type": "object"
+}
