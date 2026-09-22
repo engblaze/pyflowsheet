@@ -1,7 +1,19 @@
+import re
 import svgwrite
 from .foreignObject import ForeignObject
 from math import sin, cos, radians, sqrt
 from typing import Tuple
+
+
+def _sanitize_xml_id(raw_id: str) -> str:
+    """Sanitizes an arbitrary string into a valid SVG/XML element ID.
+    Valid XML IDs must not contain spaces, slashes, ampersands, or special characters.
+    """
+    sanitized = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", str(raw_id))
+    # XML IDs must start with a letter or underscore
+    if sanitized and (sanitized[0].isdigit() or sanitized[0] in "-."):
+        sanitized = "_" + sanitized
+    return sanitized
 
 
 class SvgContext(object):
@@ -233,14 +245,15 @@ class SvgContext(object):
         if self.g != None:
             self.gstack.append(self.g)
 
-        self.g = self.dwg.g(id=id)
+        safe_id = _sanitize_xml_id(id)
+        self.g = self.dwg.g(id=safe_id)
 
     def startTransformedGroup(self, element):
         if self.g != None:
             self.gstack.append(self.g)
 
-        safeId = element.id.replace(" ", "-")
-        self.g = self.dwg.g(id=safeId + "T")
+        safe_id = _sanitize_xml_id(element.id)
+        self.g = self.dwg.g(id=safe_id + "_T")
 
         if element.isFlippedHorizontal:
             self.g.attribs[
