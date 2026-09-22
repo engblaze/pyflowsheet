@@ -28,13 +28,23 @@ class ControlValve(BaseValve):
         size: tuple[float, float] = (30.0, 20.0),
         actuator_height: float = 24.0,
         description: str = "",
+        valve_type: str | None = None,
     ):
-        self.body_type = body_type.lower()
+        actual_body = valve_type if valve_type is not None else body_type
+        self.body_type = actual_body.lower()
         self.actuator = actuator.lower()
         self.failure_mode = failure_mode.lower()
         self.actuator_height = actuator_height
         super().__init__(id, name or id, position=position, size=size, description=description)
         self.updatePorts()
+
+    @property
+    def valve_type(self) -> str:
+        return self.body_type
+
+    @valve_type.setter
+    def valve_type(self, val: str) -> None:
+        self.body_type = val.lower()
 
     def updatePorts(self) -> None:
         super().updatePorts()

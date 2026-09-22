@@ -1,0 +1,77 @@
+metadata:
+  title: "Hydrocarbon Treatment P&ID"
+  version: "1.0"
+equipment:
+  - id: V-101
+    name: "Feed Surge Drum"
+    type: "HorizontalVessel"
+    position: [60, 100]
+    size: [90, 40]
+
+  - id: P-101
+    name: "Charge Pump"
+    type: "ProgressiveCavityPump"
+    position: [190, 105]
+    size: [50, 30]
+
+  - id: E-101
+    name: "Feed Preheater"
+    type: "ShellAndTubeExchanger"
+    position: [280, 95]
+    size: [70, 40]
+
+  - id: S-101
+    name: "Phase Separator"
+    type: "HorizontalSettler"
+    position: [390, 90]
+    size: [100, 50]
+
+  - id: PCV-101
+    name: "Offgas Backpressure Valve"
+    type: "ControlValve"
+    valve_type: "globe"
+    actuator: "pneumatic"
+    failure_mode: "fail_closed"
+    position: [420, 20]
+    size: [28, 18]
+
+  - id: PIT-101
+    name: "Pressure Transmitter"
+    type: "Instrument"
+    tag: "PIT-101"
+    balloon_type: "discrete"
+    location: "field"
+    position: [370, 20]
+    size: [24, 24]
+
+  - id: PSV-101
+    name: "Vessel Relief Valve"
+    type: "SafetyReliefValve"
+    position: [470, 20]
+    size: [24, 24]
+
+streams:
+  - id: S-01
+    from: V-101:Out
+    to: P-101:In
+    line_type: process
+
+  - id: S-02
+    from: P-101:Out
+    to: E-101:TubeIn
+    line_type: process
+
+  - id: S-03
+    from: E-101:TubeOut
+    to: S-101:Feed
+    line_type: process
+
+  - id: S-04
+    from: S-101:Vent
+    to: PCV-101:In
+    line_type: process
+
+  - id: SIG-01
+    from: PIT-101:Out
+    to: PCV-101:Actuator
+    line_type: pneumatic

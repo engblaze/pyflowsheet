@@ -489,19 +489,50 @@ class Flowsheet:
             if hasattr(u, "capLength") and u.capLength is not None:
                 u_data["cap_length"] = float(u.capLength)
 
+            valve_type = getattr(u, "valve_type", getattr(u, "body_type", None))
+            if valve_type is not None:
+                u_data["valve_type"] = str(valve_type)
+
+            if hasattr(u, "actuator") and u.actuator is not None:
+                u_data["actuator"] = str(u.actuator)
+
+            if hasattr(u, "failure_mode") and u.failure_mode is not None:
+                u_data["failure_mode"] = str(u.failure_mode)
+
+            if hasattr(u, "tag") and u.tag is not None:
+                tag_val = u.tag.raw if hasattr(u.tag, "raw") else str(u.tag)
+                u_data["tag"] = tag_val
+
+            if hasattr(u, "balloon_type") and u.balloon_type is not None:
+                u_data["balloon_type"] = str(u.balloon_type)
+
+            if hasattr(u, "location") and u.location is not None:
+                u_data["location"] = str(u.location)
+
+            if hasattr(u, "head_type") and u.head_type is not None:
+                u_data["head_type"] = str(u.head_type)
+
             if u.internals:
                 u_data["internals"] = [{"type": i.__class__.__name__} for i in u.internals]
 
             if u.ports:
-                u_data["ports"] = [
-                    {
-                        "id": p.name,
-                        "position": [float(p.relativePosition[0]), float(p.relativePosition[1])],
-                        "normal": [float(p.normal[0]), float(p.normal[1])],
-                        "intent": p.intent,
-                    }
-                    for p in u.ports.values()
-                ]
+                seen_ports = set()
+                ports_list = []
+                for p_name, p in u.ports.items():
+                    if p_name not in seen_ports:
+                        seen_ports.add(p_name)
+                        ports_list.append(
+                            {
+                                "id": p_name,
+                                "position": [
+                                    float(p.relativePosition[0]),
+                                    float(p.relativePosition[1]),
+                                ],
+                                "normal": [float(p.normal[0]), float(p.normal[1])],
+                                "intent": p.intent,
+                            }
+                        )
+                u_data["ports"] = ports_list
 
             if (
                 u.horizontalLabelAlignment != HorizontalLabelAlignment.Center
