@@ -1,3 +1,10 @@
+from .actuators import (
+    ActuatorKind,
+    ActuatorType,
+    ControlValve,
+    FailureKind,
+    FailureMode,
+)
 from .bodies import (
     BallValve,
     BaseValve,
@@ -11,11 +18,16 @@ from .bodies import (
 )
 
 __all__ = [
+    "ActuatorKind",
+    "ActuatorType",
     "BallValve",
     "BaseValve",
     "ButterflyValve",
     "CheckValve",
+    "ControlValve",
     "DiaphragmValve",
+    "FailureKind",
+    "FailureMode",
     "GateValve",
     "GlobeValve",
     "NeedleValve",
