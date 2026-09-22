@@ -29,19 +29,20 @@ class ControlValve(BaseValve):
         actuator_height: float = 24.0,
         description: str = "",
     ):
-        super().__init__(id, name or id, position=position, size=size, description=description)
         self.body_type = body_type.lower()
         self.actuator = actuator.lower()
         self.failure_mode = failure_mode.lower()
         self.actuator_height = actuator_height
+        super().__init__(id, name or id, position=position, size=size, description=description)
         self.updatePorts()
 
     def updatePorts(self) -> None:
         super().updatePorts()
         # Top actuator connection port for signal line
-        act_y_rel = 0.0  # Top of actuator in bounding box
+        act_height = getattr(self, "actuator_height", 24.0)
+        act_y_rel = -(act_height * 1.1) / self.size[1]
         self.ports["Actuator"] = Port("Actuator", self, (0.5, act_y_rel), (0, -1))
-        self.ports["Signal"] = self.ports["Actuator"]
+        self.ports["Signal"] = Port("Signal", self, (0.5, act_y_rel), (0, -1))
 
     def _draw_actuator(self, ctx, cx: float, stem_top: float) -> None:
         w, _ = self.size
@@ -109,6 +110,7 @@ class ControlValve(BaseValve):
             )
         elif self.actuator == "manual":
             # T-handle / handwheel
+            ctx.line((cx, stem_top), (cx, act_top), self.lineColor, self.lineSize)
             ctx.line(
                 (cx - aw / 2.0, act_top),
                 (cx + aw / 2.0, act_top),
@@ -247,7 +249,7 @@ class ControlValve(BaseValve):
         self._draw_actuator(ctx, cx, stem_top)
 
         # 4. Draw failure mode indicator
-        stem_mid = (cy + stem_top) / 2.0
+        stem_mid = (y + stem_top) / 2.0
         self._draw_failure_mode(ctx, cx, stem_mid)
 
         super().draw(ctx)
