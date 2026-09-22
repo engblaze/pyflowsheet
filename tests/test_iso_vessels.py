@@ -150,3 +150,61 @@ def test_vessels_drawing(svg_ctx):
 
     output = svg_ctx.render(saveFile=False)
     assert len(output) > 1000
+
+
+def test_aliased_ports_transformations():
+    # Test flipVertical on HorizontalSettler with aliased ports
+    hs_flip = HorizontalSettler("S-FLIP", "Settler", position=(0, 0), size=(100, 40))
+    hs_flip.flipVertical()
+
+    assert hs_flip.isFlippedVertical is True
+    assert hs_flip.ports["Vent"].relativePosition == (0.5, 1.0)
+    assert hs_flip.ports["Vent"].normal == (0, 1)
+    assert hs_flip.ports["Top"] == hs_flip.ports["Vent"]
+
+    assert hs_flip.ports["HeavyOut"].relativePosition == (0.35, 0.0)
+    assert hs_flip.ports["HeavyOut"].normal == (0, -1)
+    assert hs_flip.ports["Bottom"] == hs_flip.ports["HeavyOut"]
+
+    # Test rotate(90) on HorizontalSettler with aliased ports
+    hs_rot = HorizontalSettler("S-ROT", "Settler", position=(0, 0), size=(100, 40))
+    hs_rot.rotate(90)
+
+    assert hs_rot.rotation == 90
+    assert hs_rot.ports["Vent"].normal[0] == pytest.approx(1.0, abs=1e-5)
+    assert hs_rot.ports["Vent"].normal[1] == pytest.approx(0.0, abs=1e-5)
+    assert hs_rot.ports["Top"] == hs_rot.ports["Vent"]
+
+    # Test flipVertical on JacketedVessel with aliased ports
+    jv_flip = JacketedVessel("R-FLIP", "Reactor", position=(0, 0), size=(60, 100))
+    jv_flip.flipVertical()
+
+    assert jv_flip.isFlippedVertical is True
+    assert jv_flip.ports["In"].relativePosition == (0.5, 1.0)
+    assert jv_flip.ports["In"].normal == (0, 1)
+    assert jv_flip.ports["Top"] == jv_flip.ports["In"]
+
+    assert jv_flip.ports["Out"].relativePosition == (0.5, 0.0)
+    assert jv_flip.ports["Out"].normal == (0, -1)
+    assert jv_flip.ports["Bottom"] == jv_flip.ports["Out"]
+
+    assert jv_flip.ports["JIn"].relativePosition == (0.0, 0.25)
+    assert jv_flip.ports["JIn"].normal == (-1, 0)
+    assert jv_flip.ports["JacketIn"] == jv_flip.ports["JIn"]
+
+    assert jv_flip.ports["JOut"].relativePosition == (1.0, 0.65)
+    assert jv_flip.ports["JOut"].normal == (1, 0)
+    assert jv_flip.ports["JacketOut"] == jv_flip.ports["JOut"]
+
+    # Test rotate(90) on JacketedVessel with aliased ports
+    jv_rot = JacketedVessel("R-ROT", "Reactor", position=(0, 0), size=(60, 100))
+    jv_rot.rotate(90)
+
+    assert jv_rot.rotation == 90
+    assert jv_rot.ports["In"].normal[0] == pytest.approx(1.0, abs=1e-5)
+    assert jv_rot.ports["In"].normal[1] == pytest.approx(0.0, abs=1e-5)
+    assert jv_rot.ports["Top"] == jv_rot.ports["In"]
+
+    assert jv_rot.ports["Out"].normal[0] == pytest.approx(-1.0, abs=1e-5)
+    assert jv_rot.ports["Out"].normal[1] == pytest.approx(0.0, abs=1e-5)
+    assert jv_rot.ports["Bottom"] == jv_rot.ports["Out"]

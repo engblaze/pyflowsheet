@@ -65,7 +65,7 @@ class UnitOperation:
 
     def flipVertical(self):
         self.isFlippedVertical = True
-        for p in self.ports.values():
+        for p in set(self.ports.values()):
             p.relativePosition = (
                 (p.relativePosition[0]),
                 1 - p.relativePosition[1],
@@ -75,7 +75,7 @@ class UnitOperation:
 
     def flipHorizontal(self):
         self.isFlippedHorizontal = True
-        for p in self.ports.values():
+        for p in set(self.ports.values()):
             p.relativePosition = (
                 1 - (p.relativePosition[0]),
                 p.relativePosition[1],
@@ -92,7 +92,7 @@ class UnitOperation:
         deltaAngle = angle - self.rotation
 
         self.rotation = angle
-        for p in self.ports.values():
+        for p in set(self.ports.values()):
             x = p.relativePosition[0] * self.size[0]
             y = p.relativePosition[1] * self.size[1]
             nx = p.normal[0]
