@@ -7,21 +7,6 @@ from pydantic import ValidationError
 from .models import FlowsheetSchema
 
 
-class ValidationErrorStr(str):
-    """A string subclass for validation errors that supports case-tolerant substring matching."""
-
-    def __contains__(self, item: object) -> bool:
-        if isinstance(item, str):
-            return super().__contains__(item) or item.lower() in super().lower()
-        return super().__contains__(item)
-
-    def lower(self) -> "ValidationErrorStr":
-        return ValidationErrorStr(super().lower())
-
-    def upper(self) -> "ValidationErrorStr":
-        return ValidationErrorStr(super().upper())
-
-
 class FlowsheetValidationError(ValueError):
     """Raised when a flowsheet specification fails semantic graph validation."""
 
@@ -51,11 +36,7 @@ def validate_flowsheet_integrity(schema: FlowsheetSchema) -> list[str]:
     all_units = schema.components.all_units()
     for unit in all_units:
         if unit.id in unit_ids:
-            errors.append(
-                ValidationErrorStr(
-                    f"Duplicate component ID '{unit.id}' found in flowsheet components."
-                )
-            )
+            errors.append(f"Duplicate component ID '{unit.id}' found in flowsheet components.")
         else:
             unit_ids[unit.id] = unit
 
@@ -63,9 +44,7 @@ def validate_flowsheet_integrity(schema: FlowsheetSchema) -> list[str]:
     stream_ids: set[str] = set()
     for s in schema.streams:
         if s.id in stream_ids:
-            errors.append(
-                ValidationErrorStr(f"Duplicate stream ID '{s.id}' found in flowsheet streams.")
-            )
+            errors.append(f"Duplicate stream ID '{s.id}' found in flowsheet streams.")
         else:
             stream_ids.add(s.id)
 
@@ -76,39 +55,29 @@ def validate_flowsheet_integrity(schema: FlowsheetSchema) -> list[str]:
 
         from_unit = unit_ids.get(from_unit_id)
         if from_unit is None:
-            errors.append(
-                ValidationErrorStr(
-                    f"Stream '{s.id}' references non-existent source unit '{from_unit_id}'."
-                )
-            )
+            errors.append(f"Stream '{s.id}' references non-existent source unit '{from_unit_id}'.")
         else:
             # Check port if unit explicitly defined custom ports
             if from_unit.ports:
                 declared_ports = {p.id for p in from_unit.ports}
                 if s.from_endpoint.port not in declared_ports:
                     errors.append(
-                        ValidationErrorStr(
-                            f"Stream '{s.id}' source port '{s.from_endpoint.port}' "
-                            f"does not exist on unit '{from_unit_id}'."
-                        )
+                        f"Stream '{s.id}' source port '{s.from_endpoint.port}' "
+                        f"does not exist on unit '{from_unit_id}'."
                     )
 
         to_unit = unit_ids.get(to_unit_id)
         if to_unit is None:
             errors.append(
-                ValidationErrorStr(
-                    f"Stream '{s.id}' references non-existent destination unit '{to_unit_id}'."
-                )
+                f"Stream '{s.id}' references non-existent destination unit '{to_unit_id}'."
             )
         else:
             if to_unit.ports:
                 declared_ports = {p.id for p in to_unit.ports}
                 if s.to_endpoint.port not in declared_ports:
                     errors.append(
-                        ValidationErrorStr(
-                            f"Stream '{s.id}' destination port '{s.to_endpoint.port}' "
-                            f"does not exist on unit '{to_unit_id}'."
-                        )
+                        f"Stream '{s.id}' destination port '{s.to_endpoint.port}' "
+                        f"does not exist on unit '{to_unit_id}'."
                     )
 
     return errors

@@ -22,7 +22,7 @@ def test_duplicate_component_id_detected():
     }
     schema = FlowsheetSchema.model_validate(data)
     errors = validate_flowsheet_integrity(schema)
-    assert any("duplicate component id 'V-101'" in e.lower() for e in errors)
+    assert any("duplicate component id 'v-101'" in e.lower() for e in errors)
 
 
 def test_duplicate_stream_id_detected():
@@ -66,7 +66,9 @@ def test_missing_stream_source_unit_detected():
     }
     schema = FlowsheetSchema.model_validate(data)
     errors = validate_flowsheet_integrity(schema)
-    assert any("stream 'S01' references non-existent source unit 'V-MISSING'" in e for e in errors)
+    assert any(
+        "stream 's01' references non-existent source unit 'v-missing'" in e.lower() for e in errors
+    )
 
 
 def test_missing_stream_target_unit_detected():
@@ -83,8 +85,8 @@ def test_missing_stream_target_unit_detected():
     }
     schema = FlowsheetSchema.model_validate(data)
     errors = validate_flowsheet_integrity(schema)
-    msg = "stream 'S01' references non-existent destination unit 'V-GHOST'"
-    assert any(msg in e for e in errors)
+    msg = "stream 's01' references non-existent destination unit 'v-ghost'"
+    assert any(msg in e.lower() for e in errors)
 
 
 def test_undeclared_port_on_custom_ports_unit():

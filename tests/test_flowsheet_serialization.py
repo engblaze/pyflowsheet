@@ -156,3 +156,61 @@ def test_load_water_treatment_v2_yaml_and_render(tmp_path):
 def test_flowsheet_from_yaml_invalid_type():
     with pytest.raises(TypeError, match="Unsupported source type for from_yaml"):
         Flowsheet.from_yaml(12345)
+
+
+def test_flowsheet_preserves_tables_and_settings_roundtrip():
+    data = {
+        "schema_version": "1.0",
+        "metadata": {
+            "id": "TABLES_SETTINGS_TEST",
+            "name": "Tables and Settings Test",
+        },
+        "components": {
+            "equipment": [
+                {
+                    "id": "V1",
+                    "name": "Tank",
+                    "type": "Vessel",
+                    "position": [100.0, 100.0],
+                }
+            ]
+        },
+        "streams": [],
+        "tables": [
+            {
+                "id": "T101",
+                "name": "Stream Summary",
+                "position": [20.0, 200.0],
+                "size": [120.0, 60.0],
+                "columns": ["Stream", "T (C)", "P (bar)"],
+                "data": [["S1", 25.0, 1.013]],
+                "figsize": [6.0, 4.0],
+            }
+        ],
+        "settings": {
+            "show_grid": True,
+            "theme": "engineering",
+            "custom_key": 42,
+        },
+    }
+
+    pfd = Flowsheet.from_dict(data)
+    assert pfd.id == "TABLES_SETTINGS_TEST"
+    assert len(pfd.tables) == 1
+    assert pfd.tables[0]["id"] == "T101"
+    assert pfd.tables[0]["columns"] == ["Stream", "T (C)", "P (bar)"]
+    assert pfd.settings == {"show_grid": True, "theme": "engineering", "custom_key": 42}
+
+    exported = pfd.to_dict()
+    assert "tables" in exported
+    assert "settings" in exported
+    assert len(exported["tables"]) == 1
+    assert exported["tables"][0]["id"] == "T101"
+    assert exported["settings"]["theme"] == "engineering"
+    assert exported["settings"]["custom_key"] == 42
+
+    # Roundtrip back from exported dict
+    re_pfd = Flowsheet.from_dict(exported)
+    assert len(re_pfd.tables) == 1
+    assert re_pfd.tables[0]["id"] == "T101"
+    assert re_pfd.settings == {"show_grid": True, "theme": "engineering", "custom_key": 42}

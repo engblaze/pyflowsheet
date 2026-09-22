@@ -33,6 +33,8 @@ class Flowsheet:
         self.streams = {}
         self.showGrid = False
         self.showPorts = False
+        self.tables = []
+        self.settings = {}
 
     def addAnnotations(self, elements):
         for e in elements:
@@ -243,6 +245,14 @@ class Flowsheet:
             if s.label_offset != (0.0, 10.0):
                 stream_obj.labelOffset = tuple(s.label_offset)
 
+        # 3. Preserve tables and settings
+        if getattr(schema, "tables", None):
+            flowsheet.tables = [t.model_dump(by_alias=True) for t in schema.tables]
+        else:
+            flowsheet.tables = getattr(flowsheet, "tables", [])
+
+        flowsheet.settings = dict(schema.settings)
+
         return flowsheet
 
     @classmethod
@@ -379,6 +389,8 @@ class Flowsheet:
                 "stream_flags": stream_flags_list,
             },
             "streams": streams_list,
+            "tables": getattr(self, "tables", []),
+            "settings": getattr(self, "settings", {}),
         }
 
     def to_yaml(self, filepath: str | Path | None = None) -> str:
