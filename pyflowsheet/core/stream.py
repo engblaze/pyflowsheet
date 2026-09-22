@@ -1,10 +1,11 @@
+import math
 from typing import Any
 
 from .pathfinder import Pathfinder, compressPath
 
 
 class Stream:
-    def __init__(self, id, fromPort, toPort):
+    def __init__(self, id, fromPort, toPort, line_type: str = "process"):
         self.id = id
         self.lineColor = (0, 0, 0, 255)
         self.textColor = (0, 0, 0, 255)
@@ -20,6 +21,7 @@ class Stream:
         self.calculated_route: list[tuple[float, float]] = []
         self.crossover_bridges: list[Any] = []
         self.knockout_masks: list[Any] = []
+        self.line_type: str = line_type
 
     def draw(self, ctx, grid=None, minx=0, miny=0):
         if self.calculated_route:
@@ -36,6 +38,14 @@ class Stream:
             points.append(self.toPort.get_position())
             startAnchor = points[0]
 
+        effective_dash = self.dashArray
+        effective_size = self.lineSize
+        if self.line_type == "electric" and effective_dash is None:
+            effective_dash = "6,4"
+            effective_size = 1.5
+        elif self.line_type in ("pneumatic", "digital", "capillary"):
+            effective_size = 1.5
+
         if hasattr(ctx, "raw_path") and self.crossover_bridges:
             from ..layout.crossover import CrossoverDetector
 
@@ -45,12 +55,15 @@ class Stream:
                 d_str,
                 fillColor=None,
                 lineColor=self.lineColor,
-                lineSize=self.lineSize,
-                dashArray=self.dashArray,
+                lineSize=effective_size,
+                dashArray=effective_dash,
                 endMarker=True,
             )
         else:
-            ctx.path(points, None, self.lineColor, self.lineSize, False, self.dashArray, True)
+            ctx.path(points, None, self.lineColor, effective_size, False, effective_dash, True)
+
+        if self.line_type != "process":
+            self._draw_signal_decorations(ctx, points)
 
         # Draw knockout masks if any
         for box in self.knockout_masks:
@@ -87,6 +100,91 @@ class Stream:
             grid.cleanup()
 
         return
+
+    def _draw_signal_decorations(self, ctx, points: list[tuple[float, float]]) -> None:
+        """Renders ANSI/ISA-5.1 line decorations (pneumatic slashes, digital dots,
+        capillary crosses) along straight route segments.
+        """
+        if not points or len(points) < 2:
+            return
+
+        if self.line_type == "pneumatic":
+            # Draw double slash // marks periodically
+            spacing = 24.0
+            slash_len = 6.0
+            for i in range(len(points) - 1):
+                p1, p2 = points[i], points[i + 1]
+                dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+                seg_len = math.hypot(dx, dy)
+                if seg_len < 12.0:
+                    continue
+                ux, uy = dx / seg_len, dy / seg_len
+                # Normal perpendicular to segment
+                nx, ny = -uy, ux
+
+                num_marks = max(1, int(seg_len / spacing))
+                step = seg_len / (num_marks + 1)
+                for k in range(1, num_marks + 1):
+                    dist = k * step
+                    cx, cy = p1[0] + ux * dist, p1[1] + uy * dist
+                    # Draw pair of oblique slashes slanted at ~60 deg
+                    for offset in (-2.5, 2.5):
+                        sx, sy = cx + ux * offset, cy + uy * offset
+                        # Tick segment with 60 deg slant
+                        slant_x = ux * 3.0 + nx * slash_len
+                        slant_y = uy * 3.0 + ny * slash_len
+                        ctx.line(
+                            (sx - slant_x / 2.0, sy - slant_y / 2.0),
+                            (sx + slant_x / 2.0, sy + slant_y / 2.0),
+                            self.lineColor,
+                            1.0,
+                        )
+
+        elif self.line_type == "digital":
+            # Periodic open dots along the line
+            spacing = 20.0
+            r = 2.0
+            for i in range(len(points) - 1):
+                p1, p2 = points[i], points[i + 1]
+                dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+                seg_len = math.hypot(dx, dy)
+                if seg_len < 10.0:
+                    continue
+                ux, uy = dx / seg_len, dy / seg_len
+                num_marks = max(1, int(seg_len / spacing))
+                step = seg_len / (num_marks + 1)
+                for k in range(1, num_marks + 1):
+                    cx, cy = p1[0] + ux * k * step, p1[1] + uy * k * step
+                    ctx.circle(
+                        [(cx - r, cy - r), (cx + r, cy + r)],
+                        fillColor=(255, 255, 255, 255),
+                        lineColor=self.lineColor,
+                        lineSize=1.0,
+                    )
+
+        elif self.line_type == "capillary":
+            # Periodic crosses (-x-x-)
+            spacing = 24.0
+            arm = 3.5
+            for i in range(len(points) - 1):
+                p1, p2 = points[i], points[i + 1]
+                dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+                seg_len = math.hypot(dx, dy)
+                if seg_len < 12.0:
+                    continue
+                ux, uy = dx / seg_len, dy / seg_len
+                nx, ny = -uy, ux
+                num_marks = max(1, int(seg_len / spacing))
+                step = seg_len / (num_marks + 1)
+                for k in range(1, num_marks + 1):
+                    cx, cy = p1[0] + ux * k * step, p1[1] + uy * k * step
+                    # Diagonal X cross
+                    d1_start = (cx - ux * arm - nx * arm, cy - uy * arm - ny * arm)
+                    d1_end = (cx + ux * arm + nx * arm, cy + uy * arm + ny * arm)
+                    d2_start = (cx - ux * arm + nx * arm, cy - uy * arm + ny * arm)
+                    d2_end = (cx + ux * arm - nx * arm, cy + uy * arm - ny * arm)
+                    ctx.line(d1_start, d1_end, self.lineColor, 1.0)
+                    ctx.line(d2_start, d2_end, self.lineColor, 1.0)
 
     def _calculateAutoRoute(self, minx, miny, grid):
         normalLength = 10
