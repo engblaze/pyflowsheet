@@ -186,6 +186,8 @@ class UnitOperation:
 
         return anchor, align
 
+    _getTextAnchor = getTextAnchor
+
     def drawTextLayer(self, ctx, showPorts=False):
         if showPorts:
             for p in self.ports.values():
