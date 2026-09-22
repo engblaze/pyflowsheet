@@ -131,3 +131,7 @@ dmypy.json
 # Local VScode
 .vscode/
 mystats
+
+# Development tooling scratch
+.superpowers/
+.worktrees/
