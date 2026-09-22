@@ -32,6 +32,9 @@ def render_command(args: argparse.Namespace) -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
+        if getattr(args, "auto_layout", False):
+            flowsheet.auto_layout()
+
         ctx = SvgContext(str(output_path))
         flowsheet.draw(ctx)
         ctx.render(saveFile=True)
@@ -102,6 +105,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     render_parser.add_argument(
         "--show-ports", action="store_true", help="Display port connection dots on units"
+    )
+    render_parser.add_argument(
+        "--auto-layout",
+        action="store_true",
+        help="Automatically compute macro equipment positions and orthogonal stream routing.",
     )
 
     # validate

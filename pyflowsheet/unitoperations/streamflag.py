@@ -2,8 +2,17 @@ from ..core import Port, UnitOperation
 
 
 class StreamFlag(UnitOperation):
-    def __init__(self, id: str, name: str, position=(0, 0), size=(40, 40), description: str = ""):
-        super().__init__(id, name, position=position, size=size)
+    def __init__(
+        self,
+        id: str,
+        name: str,
+        position=(0, 0),
+        size=(40, 40),
+        description: str = "",
+        role: str = "input",
+    ):
+        super().__init__(id, name, position=position, size=size, description=description)
+        self.role = role
         self.updatePorts()
 
     def updatePorts(self):

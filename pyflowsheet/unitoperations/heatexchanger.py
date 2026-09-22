@@ -14,6 +14,12 @@ class HeatExchanger(UnitOperation):
         self.ports["SIn"] = Port("SIn", self, (0.5, 0), (0, -1))
         self.ports["SOut"] = Port("SOut", self, (0.5, 1), (0, 1), intent="out")
 
+        # Tube and shell port aliases
+        self.ports["InTube"] = self.ports["TIn"]
+        self.ports["OutTube"] = self.ports["TOut"]
+        self.ports["InShell"] = self.ports["SIn"]
+        self.ports["OutShell"] = self.ports["SOut"]
+
         return
 
     def draw(self, ctx):
