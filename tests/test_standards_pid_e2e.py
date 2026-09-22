@@ -188,3 +188,44 @@ streams: []
 
     v2 = fs2.unitOperations["V-201"]
     assert v2.head_type == "flat"
+
+
+def test_flowsheet_to_dict_deduplicates_aliased_ports():
+    from pyflowsheet.unitoperations import AirCooler, HorizontalSettler
+    from pyflowsheet.valves import ControlValve
+
+    fs = Flowsheet("TEST_DEDUP", "Test Port Deduplication")
+    cv = ControlValve("CV-1", "Control Valve")
+    settler = HorizontalSettler("S-1", "Horizontal Settler")
+    cooler = AirCooler("AC-1", "Air Cooler")
+
+    fs.addUnits([cv, settler, cooler])
+    d = fs.to_dict()
+
+    eq_map = {eq["id"]: eq for eq in d["components"]["equipment"]}
+
+    # ControlValve has Actuator and Signal aliased to the same port object, plus In and Out.
+    # Total unique ports for ControlValve should be 3: In, Out, Actuator
+    cv_ports = eq_map["CV-1"]["ports"]
+    assert len(cv_ports) == 3
+    cv_port_ids = [p["id"] for p in cv_ports]
+    assert "Actuator" in cv_port_ids
+    assert "Signal" not in cv_port_ids
+
+    # HorizontalSettler:
+    # ports are Feed, LightOut, HeavyOut, Vent
+    # aliases: In -> Feed, Out -> LightOut, Top -> Vent, Bottom -> HeavyOut
+    # Total unique ports should be 4: Feed, LightOut, HeavyOut, Vent
+    settler_ports = eq_map["S-1"]["ports"]
+    assert len(settler_ports) == 4
+    settler_port_ids = [p["id"] for p in settler_ports]
+    assert set(settler_port_ids) == {"Feed", "LightOut", "HeavyOut", "Vent"}
+
+    # AirCooler:
+    # In, Out
+    # aliases: ProcessIn -> In, ProcessOut -> Out, TubeIn -> In, TubeOut -> Out
+    # Total unique ports should be 2: In, Out
+    cooler_ports = eq_map["AC-1"]["ports"]
+    assert len(cooler_ports) == 2
+    cooler_port_ids = [p["id"] for p in cooler_ports]
+    assert set(cooler_port_ids) == {"In", "Out"}

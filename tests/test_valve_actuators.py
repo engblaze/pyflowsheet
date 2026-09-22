@@ -29,8 +29,8 @@ def test_control_valve_ports():
     # Signal port should be at top of actuator
     assert signal_port.relativePosition[1] <= 0.1
     assert signal_port.normal == (0, -1)
-    # Distinct instances with identical properties
-    assert signal_port is not actuator_port
+    # Signal aliases the Actuator port directly
+    assert signal_port is actuator_port
     assert signal_port.relativePosition == actuator_port.relativePosition
     assert signal_port.normal == actuator_port.normal
     # Expected relative position corresponds to -(actuator_height * 1.1) / size[1]

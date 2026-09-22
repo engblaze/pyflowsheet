@@ -52,7 +52,7 @@ class ControlValve(BaseValve):
         act_height = getattr(self, "actuator_height", 24.0)
         act_y_rel = -(act_height * 1.1) / self.size[1]
         self.ports["Actuator"] = Port("Actuator", self, (0.5, act_y_rel), (0, -1))
-        self.ports["Signal"] = Port("Signal", self, (0.5, act_y_rel), (0, -1))
+        self.ports["Signal"] = self.ports["Actuator"]
 
     def _draw_actuator(self, ctx, cx: float, stem_top: float) -> None:
         w, _ = self.size

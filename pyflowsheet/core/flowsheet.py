@@ -519,11 +519,11 @@ class Flowsheet:
                 seen_ports = set()
                 ports_list = []
                 for p_name, p in u.ports.items():
-                    if p_name not in seen_ports:
-                        seen_ports.add(p_name)
+                    if p not in seen_ports:
+                        seen_ports.add(p)
                         ports_list.append(
                             {
-                                "id": p_name,
+                                "id": p.name if hasattr(p, "name") and p.name else p_name,
                                 "position": [
                                     float(p.relativePosition[0]),
                                     float(p.relativePosition[1]),
