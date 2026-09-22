@@ -66,6 +66,30 @@ class TextAnchorSchema(BaseModel):
     offset: tuple[float, float] = (0.0, 20.0)
 
 
+class RelativeToSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    target: str
+    direction: Literal["right", "left", "above", "below"] = "right"
+    offset: float = 60.0
+
+
+class AlignSchema(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    with_unit: str = Field(alias="with")
+    axis: Literal["horizontal", "vertical"] = "horizontal"
+
+
+class LayoutHintsSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    stage: int | None = None
+    flow_direction: Literal["right", "left", "down"] = "right"
+    relative_to: RelativeToSchema | None = None
+    align: AlignSchema | None = None
+
+
 class EquipmentSchema(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -82,6 +106,7 @@ class EquipmentSchema(BaseModel):
     internals: list[InternalSchema] = Field(default_factory=list)
     ports: list[PortSchema] = Field(default_factory=list)
     text_anchor: TextAnchorSchema | None = None
+    layout_hints: LayoutHintsSchema | None = None
 
     def get_name(self) -> str:
         return self.name if self.name is not None else self.id
