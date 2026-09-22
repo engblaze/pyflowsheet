@@ -7,6 +7,7 @@ from .liquidRing import LiquidRing
 from .randomPacking import RandomPacking
 from .reciprocating import Reciprocating
 from .stirrer import Stirrer, StirrerType
+from .structuredPacking import StructuredPacking
 from .trays import Trays
 from .tubes import Tubes
 
@@ -24,6 +25,7 @@ __all__ = [
     "ReciprocatingInternals",
     "Stirrer",
     "StirrerType",
+    "StructuredPacking",
     "Trays",
     "Tubes",
 ]

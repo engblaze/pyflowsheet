@@ -1,9 +1,12 @@
 from .blackbox import BlackBox
 from .compressor import Compressor
 from .distillation import Distillation
+from .flotationcell import FlotationCell
 from .heatexchanger import HeatExchanger
 from .horizontalvessel import HorizontalVessel
+from .hydrocyclone import Hydrocyclone
 from .jacketedvessel import JacketedVessel
+from .membranemodule import MembraneModule
 from .mixer import Mixer
 from .platehex import PlateHex
 from .pump import Pump
@@ -20,10 +23,13 @@ __all__ = [
     "Compressor",
     "Distillation",
     "DistillationColumn",
+    "FlotationCell",
     "HeatExchanger",
     "HorizontalSettler",
     "HorizontalVessel",
+    "Hydrocyclone",
     "JacketedVessel",
+    "MembraneModule",
     "Mixer",
     "PlateHex",
     "Pump",
