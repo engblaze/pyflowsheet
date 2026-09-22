@@ -3,7 +3,10 @@ from pathfinding.core.grid import Grid
 from pathfinding.finder.dijkstra import DijkstraFinder
 from pathfinding.finder.a_star import AStarFinder
 from pathfinding.finder.breadth_first import BreadthFirstFinder
-from pathfinding.core.heuristic import chebyshev, null, manhatten
+try:
+    from pathfinding.core.heuristic import chebyshev, null, manhattan as manhatten
+except ImportError:
+    from pathfinding.core.heuristic import chebyshev, null, manhatten
 from pathfinding.core.util import SQRT2
 from math import pow
 from pathfinding.core.util import backtrace, bi_backtrace
