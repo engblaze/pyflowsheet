@@ -1,11 +1,8 @@
-from ..core import UnitOperation
-from ..core import Port
+from ..core import Port, UnitOperation
 
 
 class Valve(UnitOperation):
-    def __init__(
-        self, id: str, name: str, position=(0, 0), size=(40, 20), description: str = ""
-    ):
+    def __init__(self, id: str, name: str, position=(0, 0), size=(40, 20), description: str = ""):
         super().__init__(id, name, position=position, size=size)
         self.updatePorts()
 
@@ -19,9 +16,7 @@ class Valve(UnitOperation):
         points = []
 
         points.append((self.position[0], self.position[1]))
-        points.append(
-            (self.position[0] + self.size[0], self.position[1] + self.size[1])
-        )
+        points.append((self.position[0] + self.size[0], self.position[1] + self.size[1]))
         points.append((self.position[0] + self.size[0], self.position[1]))
         points.append((self.position[0], self.position[1] + self.size[1]))
 

@@ -1,8 +1,8 @@
-import pytest
-from pyflowsheet.core.flowsheet import Flowsheet
-from pyflowsheet.core.pathfinder import compressPath, Pathfinder
-from pyflowsheet.unitoperations import BlackBox, StreamFlag
 from pathfinding.core.grid import Grid
+
+from pyflowsheet.core.flowsheet import Flowsheet
+from pyflowsheet.core.pathfinder import compressPath
+from pyflowsheet.unitoperations import BlackBox, StreamFlag
 
 
 def test_compress_path():
@@ -29,6 +29,7 @@ def test_flowsheet_grid_calculation():
     gx = round((130 - minx) / 10)
     gy = round((120 - miny) / 10)
     assert grid_matrix[gy][gx] == 0
+    assert not grid.walkable(gx, gy)
 
 
 def test_flowsheet_connect_and_draw(tmp_path):
@@ -41,6 +42,7 @@ def test_flowsheet_connect_and_draw(tmp_path):
     assert "S01" in pfd.streams
 
     from pyflowsheet.backends.svgcontext import SvgContext
+
     ctx = SvgContext(str(tmp_path / "conn.svg"))
     pfd.draw(ctx)
     svg_str = ctx.render(saveFile=True)

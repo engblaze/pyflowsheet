@@ -1,5 +1,6 @@
+from math import cos, radians, sin
+
 from .baseinternal import BaseInternal
-from math import sin, cos, radians, sqrt
 
 
 class LiquidRing(BaseInternal):

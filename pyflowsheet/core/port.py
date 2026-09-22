@@ -1,4 +1,4 @@
-class Port(object):
+class Port:
     def __init__(self, name, parent, rel_pos, normal, intent="in"):
         self.name = name
         self.relativePosition = rel_pos
@@ -12,12 +12,8 @@ class Port(object):
 
     def get_position(self):
 
-        base_x = (
-            self.parent.position[0] + self.relativePosition[0] * self.parent.size[0]
-        )
-        base_y = (
-            self.parent.position[1] + self.relativePosition[1] * self.parent.size[1]
-        )
+        base_x = self.parent.position[0] + self.relativePosition[0] * self.parent.size[0]
+        base_y = self.parent.position[1] + self.relativePosition[1] * self.parent.size[1]
         return (base_x, base_y)
 
     def draw(self, ctx):

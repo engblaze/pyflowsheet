@@ -29,9 +29,7 @@ class Jacket(BaseInternal):
                 ),
                 (
                     unit.position[0] - self.thickness,
-                    unit.position[1]
-                    + unit.size[1] * self.startYFraction
-                    + 2 * bevelLength,
+                    unit.position[1] + unit.size[1] * self.startYFraction + 2 * bevelLength,
                 ),
                 (
                     unit.position[0] - self.thickness,
@@ -51,9 +49,7 @@ class Jacket(BaseInternal):
                 ),
                 (
                     unit.position[0] + unit.size[0] + self.thickness,
-                    unit.position[1]
-                    + unit.size[1] * self.startYFraction
-                    + 2 * bevelLength,
+                    unit.position[1] + unit.size[1] * self.startYFraction + 2 * bevelLength,
                 ),
                 (
                     unit.position[0] + unit.size[0] + self.thickness,

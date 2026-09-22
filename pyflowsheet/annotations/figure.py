@@ -1,7 +1,6 @@
-from ..core import UnitOperation
-from ..core import Port
-
 import importlib.util
+
+from ..core import UnitOperation
 
 package_name = "matplotlib"
 spec = importlib.util.find_spec(package_name)
@@ -12,9 +11,10 @@ if spec is None:
     )
     PYFLOWSHEET_MATPLOTLIB_MISSING = True
 else:
-    import matplotlib.pyplot as plt
     import base64
     from io import BytesIO
+
+    import matplotlib.pyplot as plt
 
     plt.ioff()
     PYFLOWSHEET_MATPLOTLIB_MISSING = False
@@ -41,7 +41,7 @@ class Figure(UnitOperation):
             tmpfile = BytesIO()
             self.fig.savefig(tmpfile, format="png")
             encoded = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
-            data = "data:image/png;base64,{}".format(encoded)
+            data = f"data:image/png;base64,{encoded}"
             ctx.image(data, self.position, self.size)
         else:
             start = (self.position[0], self.position[1])

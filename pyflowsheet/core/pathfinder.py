@@ -1,20 +1,15 @@
-from pathfinding.core.diagonal_movement import DiagonalMovement
-from pathfinding.core.grid import Grid
-from pathfinding.finder.dijkstra import DijkstraFinder
-from pathfinding.finder.a_star import AStarFinder
-from pathfinding.finder.breadth_first import BreadthFirstFinder
-try:
-    from pathfinding.core.heuristic import chebyshev, null, manhattan as manhatten
-except ImportError:
-    from pathfinding.core.heuristic import chebyshev, null, manhatten
-from pathfinding.core.util import SQRT2
-from math import pow
-from pathfinding.core.util import backtrace, bi_backtrace
-from pathfinding.core.node import Node, GridNode
 import heapq
+from math import pow
+
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.heuristic import null
+from pathfinding.core.node import GridNode, Node
+from pathfinding.core.util import SQRT2
+from pathfinding.finder.a_star import AStarFinder
 
 # Ensure Node and GridNode support index access (step[0], step[1]) across pathfinding versions
 if not hasattr(Node, "__getitem__"):
+
     def _node_getitem(self, index):
         if hasattr(self, "x") and hasattr(self, "y"):
             if index == 0:
@@ -28,6 +23,7 @@ if not hasattr(Node, "__getitem__"):
     Node.__getitem__ = _node_getitem
 
 if not hasattr(GridNode, "__getitem__"):
+
     def _gridnode_getitem(self, index):
         if index == 0:
             return self.x
@@ -69,9 +65,6 @@ def rectifyPath(path, grid, end):
         return path
 
     newPath = []
-    deltaPath = []
-    last = path[0]
-    goal = (end.x, end.y)
 
     containsBends = True
 
@@ -105,9 +98,7 @@ def rectifyPath(path, grid, end):
 
 class Pathfinder(AStarFinder):
     def __init__(self, turnPenalty=150):
-        super(Pathfinder, self).__init__(
-            diagonal_movement=DiagonalMovement.never, heuristic=null
-        )
+        super().__init__(diagonal_movement=DiagonalMovement.never, heuristic=null)
 
         self.turnPenalty = turnPenalty
         return
@@ -146,8 +137,7 @@ class Pathfinder(AStarFinder):
             0
             if lastDirection is None
             else (
-                lastDirection[0] != currentDirection[0]
-                or lastDirection[1] != currentDirection[1]
+                lastDirection[0] != currentDirection[0] or lastDirection[1] != currentDirection[1]
             )
         )
 

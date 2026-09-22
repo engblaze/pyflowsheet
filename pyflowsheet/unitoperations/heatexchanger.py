@@ -1,11 +1,8 @@
-from ..core import UnitOperation
-from ..core import Port
+from ..core import Port, UnitOperation
 
 
 class HeatExchanger(UnitOperation):
-    def __init__(
-        self, id: str, name: str, position=(0, 0), size=(40, 40), description: str = ""
-    ):
+    def __init__(self, id: str, name: str, position=(0, 0), size=(40, 40), description: str = ""):
         super().__init__(id, name, position=position, size=size)
         self.updatePorts()
 
@@ -62,9 +59,7 @@ class HeatExchanger(UnitOperation):
                 self.position[1] + self.size[1] * 0.5,
             )
         )
-        points.append(
-            (self.position[0] + self.size[0], self.position[1] + self.size[1] * 0.5)
-        )
+        points.append((self.position[0] + self.size[0], self.position[1] + self.size[1] * 0.5))
 
         ctx.path(points, None, self.lineColor, self.lineSize, close=False)
 

@@ -1,11 +1,8 @@
-from ..core import UnitOperation
-from ..core import Port
+from ..core import Port, UnitOperation
 
 
 class StreamFlag(UnitOperation):
-    def __init__(
-        self, id: str, name: str, position=(0, 0), size=(40, 40), description: str = ""
-    ):
+    def __init__(self, id: str, name: str, position=(0, 0), size=(40, 40), description: str = ""):
         super().__init__(id, name, position=position, size=size)
         self.updatePorts()
 
@@ -30,12 +27,8 @@ class StreamFlag(UnitOperation):
             )
         )
         points.append((self.position[0] + self.size[0] * hfrac, self.position[1]))
-        points.append(
-            (self.position[0] + self.size[0], self.position[1] + self.size[1] / 2)
-        )
-        points.append(
-            (self.position[0] + self.size[0] * hfrac, self.position[1] + self.size[1])
-        )
+        points.append((self.position[0] + self.size[0], self.position[1] + self.size[1] / 2))
+        points.append((self.position[0] + self.size[0] * hfrac, self.position[1] + self.size[1]))
         points.append(
             (
                 self.position[0] + self.size[0] * hfrac,

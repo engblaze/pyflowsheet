@@ -1,17 +1,19 @@
-from .stream import Stream
-from ..annotations import TextElement
 from pathfinding.core.grid import Grid
 
+from .stream import Stream
 
-class Flowsheet(object):
+
+class Flowsheet:
     def __init__(self, id: str, name: str, description: str = ""):
-        """Generates a new Flowsheet Object. The Flowsheet object represent a Process Flow Diagram (PFD). A Flowsheet
+        """Generates a new Flowsheet Object.
+
+        The Flowsheet object represent a Process Flow Diagram (PFD). A Flowsheet
         is made up of unit operations, streams and annotations.
 
         Args:
             id (str): Short identifier of the flowsheet
             name (str): A human readable, longer name
-            description (str, optional): A text that describes the process task of the flowsheet. Defaults to "".
+            description (str, optional): A text describing the process task. Defaults to "".
         """
         self.id = id
         self.name = name
@@ -48,7 +50,8 @@ class Flowsheet(object):
 
         Raises:
             ValueError: If None is passed this function will raise a ValueError.
-                        If the id of the UnitOperation is already present in the flowsheet a value error will be raised.
+                        If the id of the UnitOperation is already present in the flowsheet
+                        a value error will be raised.
 
         Returns:
             UnitOperation: The UnitOperation object passed into the function as an argument.
@@ -59,7 +62,9 @@ class Flowsheet(object):
             )
         if unitoperation.id in self.unitOperations:
             raise ValueError(
-                "The id of unitoperation is already used within the flowsheet. Please provide a unique id. If you want to override a specific unit operation, access it directly with the flowsheet.unitoperations[] accessor."
+                "The id of unitoperation is already used within the flowsheet. "
+                "Please provide a unique id. If you want to override a specific unit operation, "
+                "access it directly with the flowsheet.unitoperations[] accessor."
             )
         self.unitOperations[unitoperation.id] = unitoperation
         return unitoperation
@@ -74,16 +79,18 @@ class Flowsheet(object):
         """
         if name in self.streams:
             raise ValueError(
-                "The id of the stream is already used within the flowsheet. Please provide a unique id. If you want to override a specific stream, access it directly with the flowsheet.streams[] accessor."
+                "The id of the stream is already used within the flowsheet. "
+                "Please provide a unique id. If you want to override a specific stream, "
+                "access it directly with the flowsheet.streams[] accessor."
             )
 
         self.streams[name] = Stream(name, fromPort, toPort)
         return
 
     def _calcGrid(self):
-        """Private helper function to rasterize the canvas and generate a course grid for pathfinding. This functions scans
-        the entire canvas area and tests if a unit intersects the grid point. If any unit does so, the point is marked as
-        "impassable" for the pathfinding algorithm.
+        """Private helper function to rasterize canvas and generate course grid for pathfinding.
+        This functions scans the entire canvas area and tests if a unit intersects the grid point.
+        If any unit does so, the point is marked as "impassable" for pathfinding.
 
         Returns:
             [2d-list]: The reachability matrix of the canvas area
@@ -149,20 +156,25 @@ class Flowsheet(object):
         return
 
     def callout(self, text, position):
-        text = TextElement(text, position)
-        self.annotations.append(text)
+        from ..annotations import TextElement
+
+        element = TextElement(text, position)
+        self.annotations.append(element)
         return
 
     def draw(self, ctx):
         """Draws the process flow diagram with the help of the context passed as an argument.
-        This function has 3 stages. In the first stage, the reachability map of the diagram is calculated, which is used in
-        the second stage to route the streams using Dykstra's algorithm. In the third stage, the unit operations are drawn.
 
-        The unit operation draw loop has two stages. In the first stage the icon is drawn with transformations applied.
-        In the second stage the text layer is drawn without any transformations (i.e. rotation) applied.
+        This function has 3 stages. In the first stage, the reachability map of the
+        diagram is calculated, which is used in the second stage to route the streams
+        using Dykstra's algorithm. In the third stage, the unit operations are drawn.
+
+        The unit operation draw loop has two stages. In the first stage the icon is drawn with
+        transformations applied. In the second stage the text layer is drawn without any
+        transformations (i.e. rotation) applied.
 
         Args:
-            ctx ([type]): A drawing context that provides an abstraction for the primitive drawing functions.
+            ctx ([type]): A drawing context providing abstraction for primitive drawing functions.
 
         Returns:
             [type]: The same context as was passed in

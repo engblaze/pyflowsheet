@@ -1,5 +1,4 @@
-from ..core import UnitOperation
-from ..core.enums import HorizontalLabelAlignment, VerticalLabelAlignment
+from ..core.unitoperation import UnitOperation
 
 
 class TextElement(UnitOperation):

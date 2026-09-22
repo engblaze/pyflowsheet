@@ -1,5 +1,4 @@
-from ..core import UnitOperation
-from ..core import Port
+from ..core import Port, UnitOperation
 
 
 class Distillation(UnitOperation):
@@ -40,9 +39,7 @@ class Distillation(UnitOperation):
             )
         else:
             self.ports["VOut"] = Port("VOut", self, (0.5, 0), (0, -1), intent="out")
-            self.ports["RIn"] = Port(
-                "RIn", self, (1.0, self.size[0] / 2 / self.size[1]), (1, 0)
-            )
+            self.ports["RIn"] = Port("RIn", self, (1.0, self.size[0] / 2 / self.size[1]), (1, 0))
 
         if self.hasReboiler:
             self.ports["Bottom"] = Port(
@@ -79,10 +76,10 @@ class Distillation(UnitOperation):
 
     def draw(self, ctx):
 
-        if self.hasCondenser == True:
+        if self.hasCondenser:
             self._drawCondenser(ctx)
 
-        if self.hasReboiler == True:
+        if self.hasReboiler:
             self._drawReboiler(ctx)
 
         self._drawBasicShape(ctx)

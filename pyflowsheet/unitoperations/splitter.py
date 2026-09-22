@@ -1,11 +1,8 @@
-from ..core import UnitOperation
-from ..core import Port
+from ..core import Port, UnitOperation
 
 
 class Splitter(UnitOperation):
-    def __init__(
-        self, id: str, name: str, position=(0, 0), size=(20, 20), description: str = ""
-    ):
+    def __init__(self, id: str, name: str, position=(0, 0), size=(20, 20), description: str = ""):
         super().__init__(id, name, position=position, size=size)
         self.fillColor = (0, 0, 0, 255)
         self.lineColor = (0, 0, 0, 255)

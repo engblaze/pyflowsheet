@@ -1,6 +1,4 @@
-from ..core import UnitOperation
-from ..core import Port
-
+from ..core import Port, UnitOperation
 from ..core.enums import FlowPattern
 
 

@@ -1,7 +1,20 @@
 import os
+
 import pytest
+
+from pyflowsheet.backends.svgcontext import SvgContext
+from pyflowsheet.internals import (
+    Baffles,
+    CatalystBed,
+    Jacket,
+    RandomPacking,
+    Stirrer,
+    Trays,
+    Tubes,
+)
 from pyflowsheet.unitoperations import (
     BlackBox,
+    Compressor,
     Distillation,
     HeatExchanger,
     Mixer,
@@ -11,22 +24,7 @@ from pyflowsheet.unitoperations import (
     StreamFlag,
     Valve,
     Vessel,
-    Compressor,
 )
-from pyflowsheet.internals import (
-    Baffles,
-    CatalystBed,
-    DiscDonutBaffles,
-    DividingWall,
-    Jacket,
-    LiquidRing,
-    RandomPacking,
-    ReciprocatingInternals,
-    Stirrer,
-    Trays,
-    Tubes,
-)
-from pyflowsheet.backends.svgcontext import SvgContext
 
 
 @pytest.fixture
@@ -70,7 +68,9 @@ def test_vessel_with_internals(svg_ctx):
         CatalystBed(),
         Jacket(),
     ]
-    vessel = Vessel("V102", "Reactor Vessel", position=(100, 100), size=(60, 120), internals=internals)
+    vessel = Vessel(
+        "V102", "Reactor Vessel", position=(100, 100), size=(60, 120), internals=internals
+    )
     assert len(vessel.internals) == 5
 
     svg_ctx.startGroup(vessel.id)
@@ -83,7 +83,9 @@ def test_distillation_column_with_internals(svg_ctx):
         Trays(5),
         RandomPacking(start=0.2, end=0.6),
     ]
-    col = Distillation("T102", "Packed Column", position=(50, 50), size=(40, 200), internals=internals)
+    col = Distillation(
+        "T102", "Packed Column", position=(50, 50), size=(40, 200), internals=internals
+    )
     assert len(col.internals) == 2
 
     svg_ctx.startGroup(col.id)

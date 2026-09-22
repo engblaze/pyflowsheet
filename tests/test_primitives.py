@@ -1,8 +1,8 @@
 import pytest
-from pyflowsheet.core.unitoperation import UnitOperation
-from pyflowsheet.core.port import Port
-from pyflowsheet.core.stream import Stream
+
 from pyflowsheet.core.enums import HorizontalLabelAlignment, VerticalLabelAlignment
+from pyflowsheet.core.port import Port
+from pyflowsheet.core.unitoperation import UnitOperation
 
 
 def test_port_position_and_relative_coordinates():
@@ -64,7 +64,9 @@ def test_unit_operation_intersects_point():
 
 def test_text_anchor_calculation():
     unit = UnitOperation("U1", "Test Unit", position=(100, 200), size=(100, 60))
-    unit.setTextAnchor(HorizontalLabelAlignment.Center, VerticalLabelAlignment.Bottom, offset=(0, 15))
+    unit.setTextAnchor(
+        HorizontalLabelAlignment.Center, VerticalLabelAlignment.Bottom, offset=(0, 15)
+    )
     anchor, align = unit.getTextAnchor()
 
     # Center x: 100 + 50 + 0 = 150

@@ -1,6 +1,6 @@
-from ..core import UnitOperation
-from ..core import Port
-from math import sin, cos, radians, sqrt
+from math import cos, radians, sin
+
+from ..core import Port, UnitOperation
 
 
 class Compressor(UnitOperation):

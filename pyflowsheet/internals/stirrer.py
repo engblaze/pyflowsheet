@@ -1,5 +1,6 @@
-from .baseinternal import BaseInternal
 from enum import Enum, auto
+
+from .baseinternal import BaseInternal
 
 
 class StirrerType(Enum):
@@ -38,10 +39,7 @@ class Stirrer(BaseInternal):
                 [
                     (
                         unit.position[0] + unit.size[0] / 2 - bladeLength,
-                        unit.position[1]
-                        + unit.size[1]
-                        - unit.size[0] / 2
-                        - bladeHeight,
+                        unit.position[1] + unit.size[1] - unit.size[0] / 2 - bladeHeight,
                     ),
                     (
                         unit.position[0] + unit.size[0] / 2 - bladeLength,
@@ -53,10 +51,7 @@ class Stirrer(BaseInternal):
                     ),
                     (
                         unit.position[0] + unit.size[0] / 2 + bladeLength,
-                        unit.position[1]
-                        + unit.size[1]
-                        - unit.size[0] / 2
-                        - bladeHeight,
+                        unit.position[1] + unit.size[1] - unit.size[0] / 2 - bladeHeight,
                     ),
                 ],
                 None,
@@ -81,17 +76,11 @@ class Stirrer(BaseInternal):
                 [
                     (
                         unit.position[0] + unit.size[0] / 2 - bladeLength,
-                        unit.position[1]
-                        + unit.size[1]
-                        - unit.size[0] / 2
-                        - bladeHeight,
+                        unit.position[1] + unit.size[1] - unit.size[0] / 2 - bladeHeight,
                     ),
                     (
                         unit.position[0] + unit.size[0] / 2 - 0.5 * bladeLength,
-                        unit.position[1]
-                        + unit.size[1]
-                        - unit.size[0] / 2
-                        + bladeHeight,
+                        unit.position[1] + unit.size[1] - unit.size[0] / 2 + bladeHeight,
                     ),
                 ],
                 unit.lineColor,
@@ -102,17 +91,11 @@ class Stirrer(BaseInternal):
                 [
                     (
                         unit.position[0] + unit.size[0] / 2 + 0.5 * bladeLength,
-                        unit.position[1]
-                        + unit.size[1]
-                        - unit.size[0] / 2
-                        - bladeHeight,
+                        unit.position[1] + unit.size[1] - unit.size[0] / 2 - bladeHeight,
                     ),
                     (
                         unit.position[0] + unit.size[0] / 2 + bladeLength,
-                        unit.position[1]
-                        + unit.size[1]
-                        - unit.size[0] / 2
-                        + bladeHeight,
+                        unit.position[1] + unit.size[1] - unit.size[0] / 2 + bladeHeight,
                     ),
                 ],
                 unit.lineColor,

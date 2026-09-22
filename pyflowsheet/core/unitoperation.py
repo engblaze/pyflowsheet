@@ -1,8 +1,9 @@
+from math import cos, radians, sin
+
 from .enums import HorizontalLabelAlignment, VerticalLabelAlignment
-from math import sin, cos, radians, sqrt
 
 
-class UnitOperation(object):
+class UnitOperation:
     def __init__(
         self,
         id: str,
@@ -101,10 +102,8 @@ class UnitOperation(object):
             cy = 0.5 * self.size[1]
             a = radians(deltaAngle)
             p.relativePosition = (
-                (x * cos(a) - y * sin(a) - cx * cos(a) + cy * sin(a) + cx)
-                / self.size[0],
-                (x * sin(a) + y * cos(a) - cx * sin(a) - cy * cos(a) + cy)
-                / self.size[1],
+                (x * cos(a) - y * sin(a) - cx * cos(a) + cy * sin(a) + cx) / self.size[0],
+                (x * sin(a) + y * cos(a) - cx * sin(a) - cy * cos(a) + cy) / self.size[1],
             )
             p.normal = (nx * cos(a) - ny * sin(a), nx * sin(a) + ny * cos(a))
 

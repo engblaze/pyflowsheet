@@ -1,8 +1,9 @@
 import re
+from math import cos, radians, sin
+
 import svgwrite
+
 from .foreignObject import ForeignObject
-from math import sin, cos, radians, sqrt
-from typing import Tuple
 
 
 def _sanitize_xml_id(raw_id: str) -> str:
@@ -16,7 +17,7 @@ def _sanitize_xml_id(raw_id: str) -> str:
     return sanitized
 
 
-class SvgContext(object):
+class SvgContext:
     def __init__(self, filename, backgroundColor=(255, 255, 255)):
         self.dwg = svgwrite.Drawing(filename, profile="full")
         self.g = None
@@ -62,15 +63,13 @@ class SvgContext(object):
         if y2 > self.bounds[3]:
             self.bounds[3] = y2
 
-    def rectangle(
-        self, rect, fillColor, lineColor: Tuple[int, int, int, int], lineSize: float
-    ):
+    def rectangle(self, rect, fillColor, lineColor: tuple[int, int, int, int], lineSize: float):
         self._updateBounds(rect)
         if fillColor == None:
             self.g.add(
                 self.dwg.rect(
                     insert=rect[0],
-                    size=(f"{rect[1][0]-rect[0][0]}", f"{rect[1][1]-rect[0][1]}"),
+                    size=(f"{rect[1][0] - rect[0][0]}", f"{rect[1][1] - rect[0][1]}"),
                     fill_opacity="0",
                     stroke=f"rgb{lineColor[0:3]}",
                     stroke_width=lineSize,
@@ -80,7 +79,7 @@ class SvgContext(object):
             self.g.add(
                 self.dwg.rect(
                     insert=rect[0],
-                    size=(f"{rect[1][0]-rect[0][0]}", f"{rect[1][1]-rect[0][1]}"),
+                    size=(f"{rect[1][0] - rect[0][0]}", f"{rect[1][1] - rect[0][1]}"),
                     fill=f"rgb{fillColor[0:3]}",
                     stroke=f"rgb{lineColor[0:3]}",
                     stroke_width=lineSize,
@@ -88,9 +87,7 @@ class SvgContext(object):
             )
         return
 
-    def circle(
-        self, rect, fillColor, lineColor: Tuple[int, int, int, int], lineSize: float
-    ):
+    def circle(self, rect, fillColor, lineColor: tuple[int, int, int, int], lineSize: float):
         self._updateBounds(rect)
         center = ((rect[0][0] + rect[1][0]) / 2, (rect[0][1] + rect[1][1]) / 2)
         r = (rect[1][0] - rect[0][0]) / 2
@@ -118,10 +115,10 @@ class SvgContext(object):
 
     def text(
         self,
-        position: Tuple[float, float],
+        position: tuple[float, float],
         text: str,
         fontFamily: str,
-        textColor: Tuple[int, int, int, int],
+        textColor: tuple[int, int, int, int],
         fontSize: int = 12,
         textAnchor: str = "middle",
     ):
@@ -140,9 +137,9 @@ class SvgContext(object):
 
     def line(
         self,
-        start: Tuple[float, float],
-        end: Tuple[float, float],
-        lineColor: Tuple[int, int, int, int],
+        start: tuple[float, float],
+        end: tuple[float, float],
+        lineColor: tuple[int, int, int, int],
         lineSize: float,
     ):
         self._updateBounds([start, end])
@@ -161,7 +158,7 @@ class SvgContext(object):
         self,
         points,
         fillColor,
-        lineColor: Tuple[int, int, int, int],
+        lineColor: tuple[int, int, int, int],
         lineSize: float,
         close: bool = False,
         dashArray: str = None,
@@ -183,7 +180,7 @@ class SvgContext(object):
         if fillColor != None:
             path.attribs["fill"] = f"rgb{fillColor[0:3]}"
         else:
-            path.attribs["fill"] = f"none"
+            path.attribs["fill"] = "none"
 
         if dashArray != None:
             path.attribs["stroke-dasharray"] = dashArray
@@ -194,7 +191,7 @@ class SvgContext(object):
             path.push(f"L {p[0]} {p[1]} ")
 
         if close:
-            path.push(f"Z")
+            path.push("Z")
 
         if endMarker:
             path.set_markers((None, False, self.marker))
@@ -207,7 +204,7 @@ class SvgContext(object):
         startAngle: float,
         endAngle: float,
         fillColor,
-        lineColor: Tuple[int, int, int, int],
+        lineColor: tuple[int, int, int, int],
         lineSize: float,
         closePath=True,
     ):
@@ -237,7 +234,7 @@ class SvgContext(object):
             p.push(f"M {start[0]} {start[1]} ")
         p.push_arc(end, 0, (rh, rv), largeArc, direction, True)
         if closePath:
-            p.push(f"Z")
+            p.push("Z")
         self.g.add(p)
         return
 
@@ -256,18 +253,16 @@ class SvgContext(object):
         self.g = self.dwg.g(id=safe_id + "_T")
 
         if element.isFlippedHorizontal:
-            self.g.attribs[
-                "transform"
-            ] = f"translate({element.position[0]+element.size[0]/2},0) scale(-1,1) translate({-(element.position[0]+element.size[0]/2)},0)"
+            cx = element.position[0] + element.size[0] / 2
+            self.g.attribs["transform"] = f"translate({cx},0) scale(-1,1) translate({-cx},0)"
         if element.isFlippedVertical:
-            self.g.attribs[
-                "transform"
-            ] = f"translate(0,{element.position[1]+element.size[1]/2}) scale(1,-1) translate(0,{-(element.position[1]+element.size[1]/2)})"
+            cy = element.position[1] + element.size[1] / 2
+            self.g.attribs["transform"] = f"translate(0,{cy}) scale(1,-1) translate(0,{-cy})"
 
         if element.rotation != 0:
-            self.g.attribs[
-                "transform"
-            ] = f"rotate({element.rotation},{element.position[0]+element.size[0]/2},{element.position[1]+element.size[1]/2} ) "
+            cx = element.position[0] + element.size[0] / 2
+            cy = element.position[1] + element.size[1] / 2
+            self.g.attribs["transform"] = f"rotate({element.rotation},{cx},{cy} ) "
         return
 
     def endGroup(self):
@@ -277,7 +272,7 @@ class SvgContext(object):
             self.g = self.gstack.pop()
         return
 
-    def html(self, html: str, position: Tuple[float, float], size: Tuple[float, float]):
+    def html(self, html: str, position: tuple[float, float], size: tuple[float, float]):
         html = "<body width='100%'>" + html + "</body>"
         e = ForeignObject(
             html,
@@ -304,14 +299,17 @@ class SvgContext(object):
         return
 
     def render(self, width=None, height=None, scale=1, saveFile=True):
-        """Write the content of the SVG drawing to a file and return the complete XML representation of the diagram.
-        By specifying width and height together, the user can change the aspect ratio of the drawing.
+        """Write the content of the SVG drawing to a file and return the complete XML.
+        By specifying width and height together, the user can change the aspect ratio
+        of the drawing.
 
         Args:
             width (int optional): The width of rendered drawing in pixel. Defaults to None.
             height (int, optional): The height of rendered drawing in pixel. Defaults to None.
-            scale (int, optional): A scaling factor than enlarges or shrinks the drawing. Can be defined in addition to width & height. Defaults to 1.
-            saveFile (bool, optional): When true, the diagram is saved to file defined in the constructor of the SvgContext. Defaults to True.
+            scale (int, optional): A scaling factor than enlarges or shrinks the drawing.
+                Can be defined in addition to width & height. Defaults to 1.
+            saveFile (bool, optional): When true, the diagram is saved to file defined
+                in the constructor of the SvgContext. Defaults to True.
 
         Returns:
             str: The string containing the xml representation of the diagram

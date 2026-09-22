@@ -1,5 +1,4 @@
-from ..core import UnitOperation
-from ..core import Port
+from ..core import Port, UnitOperation
 
 
 class Pump(UnitOperation):

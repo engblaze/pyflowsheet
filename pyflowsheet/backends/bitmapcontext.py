@@ -12,7 +12,7 @@ else:
     PYFLOWSHEET_PILLOW_MISSING = False
 
 
-class BitmapContext(object):
+class BitmapContext:
     def __init__(self, size):
 
         if PYFLOWSHEET_PILLOW_MISSING:

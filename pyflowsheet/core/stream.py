@@ -1,7 +1,7 @@
-from .pathfinder import Pathfinder, rectifyPath, compressPath
+from .pathfinder import Pathfinder, compressPath
 
 
-class Stream(object):
+class Stream:
     def __init__(self, id, fromPort, toPort):
         self.id = id
         self.lineColor = (0, 0, 0, 255)
@@ -31,9 +31,7 @@ class Stream(object):
             points.append(self.toPort.get_position())
             startAnchor = points[0]
 
-        ctx.path(
-            points, None, self.lineColor, self.lineSize, False, self.dashArray, True
-        )
+        ctx.path(points, None, self.lineColor, self.lineSize, False, self.dashArray, True)
 
         if self.showPoints:
             for p in points:

@@ -1,25 +1,24 @@
 import xml.etree.ElementTree as ET
+
 from pyflowsheet import (
-    Flowsheet,
     BlackBox,
     Distillation,
+    Flowsheet,
     HeatExchanger,
-    Mixer,
-    Splitter,
     StreamFlag,
-    Vessel,
-    Port,
     SvgContext,
-    VerticalLabelAlignment,
-    HorizontalLabelAlignment,
 )
-from pyflowsheet.internals import Tubes, RandomPacking
+from pyflowsheet.internals import RandomPacking
 
 
 def test_block_flow_diagram_svg_snapshot(tmp_path):
-    pfd = Flowsheet("V100", "Block Flow Diagram", "Demo Flowsheet for showing block-flow diagram style")
+    pfd = Flowsheet(
+        "V100", "Block Flow Diagram", "Demo Flowsheet for showing block-flow diagram style"
+    )
 
-    sp1 = BlackBox("Pretreatment", "Removal of catalyst poisons", position=(100, 180), size=(80, 60))
+    sp1 = BlackBox(
+        "Pretreatment", "Removal of catalyst poisons", position=(100, 180), size=(80, 60)
+    )
     sp2 = BlackBox("Reaction", "Catalytic reaction", position=(240, 180), size=(80, 60))
     feed = StreamFlag("Feed", "", position=(0, 190))
     product = StreamFlag("Product", "", position=(400, 190))
