@@ -13,6 +13,59 @@ The essence of semantic versioning is a 3-part MAJOR.MINOR.MAINTENANCE numbering
 
 # History
 
+## Version 0.6.0 (22-09-2026)
+
+**Milestone 4: ISO 10628 & ANSI/ISA-5.1 Standards Library**
+
+* **ISO 10628 Unit Operations**:
+  * **Vessels & Tanks**: `Vessel` enhanced with configurable `head_type` (`dished`, `conical`, `flat`), `HorizontalVessel` with saddles, `HorizontalSettler` with boot and weir, `JacketedVessel`.
+  * **Separation**: `Hydrocyclone`, `FlotationCell` (DAF), `MembraneModule`, and `StructuredPacking` column internal.
+  * **Heat Exchangers**: `ShellAndTubeExchanger` (TEMA type with tubes and baffles), `AirCooler` (fin-fan), `Reboiler` (kettle with vapor dome), `Condenser`, `FiredHeater` (furnace with radiant/convection coils and burner).
+  * **Motive Equipment**: `ProgressiveCavityPump`, `PeristalticPump`, `ReciprocatingPump`, `Blower`.
+* **Valves Library (`pyflowsheet.valves`)**:
+  * **Standard Bodies**: `BaseValve`, `GlobeValve`, `GateValve`, `BallValve`, `ButterflyValve`, `NeedleValve`, `DiaphragmValve`, `PlugValve`, `CheckValve`.
+  * **Actuators & Control**: `ControlValve` with actuators (`pneumatic`, `electric`, `solenoid`, `piston`, `manual`) and failure mode indicators (`fail_closed`, `fail_open`, `fail_locked`, `none`).
+  * **Specialties**: `SafetyReliefValve`, `RuptureDisc`, `GrabSamplingTee`, `Strainer`, `SteamTrap`.
+* **ANSI/ISA-5.1 Instrumentation (`pyflowsheet.instruments`)**:
+  * **Tagging**: `ISATag` parser conforming to ANSI/ISA-5.1 letter designations, modifiers, functions, and loop numbers.
+  * **Instrument Balloons**: `Instrument` supporting circle, square, diamond, and hexagon balloons with 4 location line types (discrete, shared display, computer function, PLC).
+  * **Signal Lines**: `line_type` on `Stream` supporting `process`, `pneumatic` (`//`), `electric` (dashed), `digital` (dots), and `capillary` (crosses) periodic decorations.
+* **Schema & Deserialization**:
+  * Added `LineType`, `BalloonType`, `LocationModifier`, `ActuatorType`, `FailureMode`, `HeadType` to schema models.
+  * Registered all 30+ new classes in `UNIT_REGISTRY` and exported in top-level `pyflowsheet`.
+  * Bidirectional YAML/dict serialization roundtrip parity via `Flowsheet.to_dict()` and `from_dict()`.
+
+## Version 0.5.0 (22-09-2026)
+
+**Milestone 3: Two-Tier Automated Layout & Smart Routing Engine**
+
+* **Two-Tier Auto-Layout Engine**: `Flowsheet.auto_layout()` computes clean positions for unpositioned units and expands inline components.
+* **Macro Layout**: Topological sorting, rank assignment, and coordinate assignment along horizontal/vertical flow directions.
+* **Inline Components**: Automatically spaces and places pumps, valves, and inline instruments along streams between major equipment.
+* **Spatial Indexing & Collisions**: `SpatialIndex` utilizing 2D bounding boxes (AABB) to detect and resolve overlaps.
+* **Orthogonal Routing & Crossovers**: Enhanced router with bend penalties and automated crossover bridge hops (`line_break` / `arc`) for crossing streams.
+
+## Version 0.4.0 (22-09-2026)
+
+**Milestone 2: Declarative Schema, Validation, and CLI**
+
+* **Declarative Schema**: Pydantic v2 models for `FlowsheetSchema`, `EquipmentSchema`, `StreamSchema`, `TableSchema`, and layout hints.
+* **Integrity Validation**: Topological verification (unique IDs, valid stream sources/targets, port resolution) via `validate_yaml_file` and `validate_dict`.
+* **CLI Tool (`pyflowsheet`)**:
+  * `pyflowsheet render`: Compiles YAML specifications into SVG diagrams with optional auto-layout (`--auto-layout`).
+  * `pyflowsheet validate`: Validates schema integrity and reports diagnostics.
+  * `pyflowsheet export-schema`: Emits the standard Flowsheet JSON Schema.
+* **Bidirectional Serialization**: `Flowsheet.from_dict()`, `Flowsheet.from_yaml()`, `Flowsheet.to_dict()`, and `Flowsheet.to_yaml()`.
+
+## Version 0.3.0 (22-09-2026)
+
+**Milestone 1: Modernization, Pyproject, and QA Architecture**
+
+* Modernized build configuration using `pyproject.toml` and `uv` package management.
+* Extended Python compatibility to Python 3.10, 3.11, 3.12, and 3.13+.
+* Enforced strict formatting and linting via Ruff.
+* Comprehensive test suite using pytest with visual SVG snapshot regression testing.
+
 ## Version 0.2.1 (04-01-2021)
 
 * Version 0.2.0 was not running after restructuring of source files. Restored package by adding all submodules correctly in setup.py

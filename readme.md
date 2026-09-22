@@ -5,48 +5,70 @@
 
 Designed for chemical, process, and systems engineers, Pyflowsheet bridges the gap between process simulation models and standardized engineering deliverables—producing CAD-grade vector SVG and PDF documents compliant with ISO and ANSI/ISA standards without requiring complex manual drafting software.
 
-## Project Status
-This project is very young and in the unstable alpha Phase. The public interface of the API and the function definitions may change with every release. Please treat every release as a change in the Major version, even though the major version will not change to 1 until a stable development pace has been reached.
-
-The documentation is just being set up, and will be gradually completed as more and more functions stabilize. 
-
-**Remark:**
-
-     The routing is done via the Dijkstra algorithm as implemented in the pathfinding library, with a very simple heuristic to discourage turning/staircasing. This may not always work and produce nice-looking streams. If you need more control over the stream routing, pyflowsheet provides a manual override of the corner points of the stream path.
+## Features
+* **ISO 10628 & ANSI/ISA-5.1 Standards Libraries**: 30+ standardized process equipment symbols, valve bodies, actuators with failure mode indicators, and instrument balloons.
+* **Declarative YAML/JSON Flowsheet Specification**: Define entire diagrams declaratively with schema validation powered by Pydantic v2.
+* **Two-Tier Automated Layout**: Automatic macro-placement and inline component expansion (`flowsheet.auto_layout()`).
+* **Intelligent Orthogonal Routing**: Heuristic grid routing with bend minimization, collision avoidance, and automatic crossover bridge hops.
+* **ANSI/ISA-5.1 Signal Lines**: Render pneumatic (`//`), electric (dashed), digital (dotted), and capillary (crossed) instrumentation streams.
+* **Command Line Interface (CLI)**: Compile, validate, and export schemas directly from your terminal.
+* **Pure Python Core**: Zero external C-library dependencies for SVG generation.
 
 ## How to install
 
-```pip install pyflowsheet```
+```bash
+pip install pyflowsheet
+```
 
-If you want to install the optional dependency Matplotlib you can instead install the [plots] extra requirement.
+To install with Matplotlib plot and table rendering support:
 
-```pip install pyflowsheet[plots]```
+```bash
+pip install "pyflowsheet[plots]"
+```
 
-### Dependencies
-* [svgwrite](https://github.com/mozman/svgwrite) 
-* [python-pathfinding package](https://github.com/brean/python-pathfinding)
-* Pillow (optional)
-* Matplotlib (optional)
-* Pandas (optional)
+## Command Line Interface (CLI)
 
-# Examples
+Pyflowsheet provides a command-line interface for compiling and validating flowsheets:
 
-## Supported flowsheet elements
-* Stream Flag/Off-page connector
-* Mixer/Splitter
-* Black-Box Operation/Process Step
-* Vessel (horizontal/vertical, internals can be ["tubes","bed"])
-* Valve
-* Distillation Column
-* Pump
-* Compressor
+```bash
+# Render a YAML flowsheet to SVG
+pyflowsheet render flowsheet.yaml -o flowsheet.svg
 
-![All unit operations](img/unit_operations_example.svg)
+# Render with automatic layout calculation
+pyflowsheet render flowsheet.yaml -o flowsheet.svg --auto-layout
 
-The following annotation objects are available:
-* Callout (simple text element)
-* Figure (requires matplotlib)
-* Table (requires matplotlib)
+# Validate YAML flowsheet syntax and topological integrity
+pyflowsheet validate flowsheet.yaml
+
+# Export the Flowsheet JSON Schema
+pyflowsheet export-schema -o flowsheet.schema.json
+```
+
+# Supported Flowsheet Elements
+
+### ISO 10628 Unit Operations
+* **Vessels & Tanks**: `Vessel` (with configurable heads: `dished`, `conical`, `flat`), `HorizontalVessel`, `HorizontalSettler`, `JacketedVessel`
+* **Columns & Internals**: `Distillation` (with `Trays`, `RandomPacking`, `StructuredPacking`, `DividingWall`, `Baffles`)
+* **Heat Exchangers**: `ShellAndTubeExchanger` (TEMA type), `AirCooler` (fin-fan), `Reboiler` (kettle), `Condenser`, `FiredHeater` (furnace), `PlateHex`, `HeatExchanger`
+* **Motive Equipment**: `Pump` (centrifugal), `ProgressiveCavityPump`, `PeristalticPump`, `ReciprocatingPump`, `Compressor`, `Blower`
+* **Separation & Mixing**: `Hydrocyclone`, `FlotationCell` (DAF), `MembraneModule`, `Mixer`, `Splitter`
+* **General**: `BlackBox` (process block), `StreamFlag` (feed/product off-page connectors)
+
+### Valves & Specialties (`pyflowsheet.valves`)
+* **Standard Bodies**: `GlobeValve`, `GateValve`, `BallValve`, `ButterflyValve`, `NeedleValve`, `DiaphragmValve`, `PlugValve`, `CheckValve`
+* **Actuated Control Valves**: `ControlValve` with `pneumatic`, `electric`, `solenoid`, `piston`, or `manual` actuators and failure mode indicators (`fail_closed`, `fail_open`, `fail_locked`, `none`)
+* **Specialties & Inline Elements**: `SafetyReliefValve` (PSV), `RuptureDisc` (PSE), `GrabSamplingTee`, `Strainer`, `SteamTrap`
+
+### ANSI/ISA-5.1 Instrumentation (`pyflowsheet.instruments`)
+* **Instrument Balloons**: `Instrument` with `balloon_type` (`discrete` / circle, `shared_display` / square, `computer_function` / hexagon, `plc` / diamond)
+* **Location Modifiers**: `location` (`field` / no line, `control_room` / solid line, `secondary` / double line, `behind_panel` / dashed line)
+* **Tagging**: Full ISA-5.1 tag parser (`ISATag`, e.g., `FIC-101`, `PT-202`, `TT-303`)
+* **Signal Lines**: Streams with `line_type="pneumatic"`, `"electric"`, `"digital"`, `"capillary"` rendering standard periodic decoration markers
+
+### Annotations
+* `Callout` (text annotation)
+* `Figure` (embedded matplotlib chart)
+* `Table` (embedded matplotlib table)
 
 ## Units of measure and the grid
 
@@ -238,6 +260,76 @@ img = pfd.draw(ctx)
 SVG(img.render(scale=1))  
 ```
 ![plots and tables demo](img/plots_and_tables.svg)
+
+## Declarative Flowsheet Specifications (YAML)
+
+Flowsheets can be fully described in declarative YAML or JSON format, with automatic schema validation and layout computation.
+
+```yaml
+schema_version: "1.0"
+metadata:
+  id: "PID-101"
+  name: "Buffer Neutralization Process"
+
+components:
+  equipment:
+    - id: "V101"
+      type: "HorizontalVessel"
+      name: "Neutralization Tank"
+      position: [150, 100]
+      size: [80, 40]
+    - id: "P101"
+      type: "ProgressiveCavityPump"
+      name: "Discharge Pump"
+      position: [280, 105]
+      size: [40, 30]
+    - id: "CV101"
+      type: "ControlValve"
+      name: "Level Control Valve"
+      actuator: "pneumatic"
+      failure_mode: "fail_closed"
+      position: [380, 112]
+      size: [24, 16]
+    - id: "LIC101"
+      type: "Instrument"
+      name: "Level Indicator Controller"
+      tag: "LIC-101"
+      balloon_type: "discrete"
+      location: "control_room"
+      position: [180, 20]
+      size: [30, 30]
+
+streams:
+  - id: "S01"
+    from: { unit: "V101", port: "Bottom" }
+    to: { unit: "P101", port: "In" }
+    line_type: "process"
+  - id: "S02"
+    from: { unit: "P101", port: "Out" }
+    to: { unit: "CV101", port: "In" }
+    line_type: "process"
+  - id: "SIG01"
+    from: { unit: "LIC101", port: "Bottom" }
+    to: { unit: "CV101", port: "Actuator" }
+    line_type: "pneumatic"
+```
+
+Load, auto-layout, and render it in Python:
+
+```python
+from pyflowsheet import Flowsheet, SvgContext
+
+# Load and validate directly from YAML
+flowsheet = Flowsheet.from_yaml("flowsheet.yaml")
+
+# Automatically calculate layout and orthogonal stream routing
+flowsheet.auto_layout()
+
+# Render to SVG
+ctx = SvgContext("flowsheet.svg")
+flowsheet.draw(ctx)
+ctx.render(saveFile=True)
+```
 
 # License
 MIT License

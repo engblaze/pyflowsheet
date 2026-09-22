@@ -1,5 +1,28 @@
 {
   "$defs": {
+    "AlignSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "with": {
+          "title": "With",
+          "type": "string"
+        },
+        "axis": {
+          "default": "horizontal",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "title": "Axis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "with"
+      ],
+      "title": "AlignSchema",
+      "type": "object"
+    },
     "ComponentsSchema": {
       "additionalProperties": true,
       "properties": {
@@ -144,6 +167,128 @@
           "default": null,
           "title": "Cap Length"
         },
+        "valve_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Valve body type (globe, gate, ball, etc.)",
+          "title": "Valve Type"
+        },
+        "actuator": {
+          "anyOf": [
+            {
+              "enum": [
+                "manual",
+                "pneumatic",
+                "electric",
+                "solenoid",
+                "piston"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Actuator type for control valves",
+          "title": "Actuator"
+        },
+        "failure_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "none",
+                "fail_closed",
+                "fail_open",
+                "fail_locked",
+                "fail_indeterminate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Actuator failure mode position",
+          "title": "Failure Mode"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ANSI/ISA-5.1 tag identifier (e.g. 'FIT-101')",
+          "title": "Tag"
+        },
+        "balloon_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "discrete",
+                "shared_display",
+                "computer_function",
+                "plc"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Instrument balloon symbol type",
+          "title": "Balloon Type"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "enum": [
+                "field",
+                "control_room",
+                "behind_panel",
+                "secondary"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Instrument location modifier",
+          "title": "Location"
+        },
+        "head_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "dished",
+                "conical",
+                "flat"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vessel head type (dished, conical, flat)",
+          "title": "Head Type"
+        },
         "internals": {
           "items": {
             "$ref": "#/$defs/InternalSchema"
@@ -162,6 +307,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/TextAnchorSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "layout_hints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LayoutHintsSchema"
             },
             {
               "type": "null"
@@ -188,6 +344,57 @@
         "type"
       ],
       "title": "InternalSchema",
+      "type": "object"
+    },
+    "LayoutHintsSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "stage": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stage"
+        },
+        "flow_direction": {
+          "default": "right",
+          "enum": [
+            "right",
+            "left",
+            "down"
+          ],
+          "title": "Flow Direction",
+          "type": "string"
+        },
+        "relative_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelativeToSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "align": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AlignSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "LayoutHintsSchema",
       "type": "object"
     },
     "MetadataRevisionSchema": {
@@ -546,6 +753,36 @@
       "title": "PortSchema",
       "type": "object"
     },
+    "RelativeToSchema": {
+      "additionalProperties": true,
+      "properties": {
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "direction": {
+          "default": "right",
+          "enum": [
+            "right",
+            "left",
+            "above",
+            "below"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "offset": {
+          "default": 60.0,
+          "title": "Offset",
+          "type": "number"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "title": "RelativeToSchema",
+      "type": "object"
+    },
     "StreamAssociatedComponentsSchema": {
       "additionalProperties": true,
       "properties": {
@@ -629,6 +866,19 @@
         },
         "to": {
           "$ref": "#/$defs/StreamEndpointSchema"
+        },
+        "line_type": {
+          "default": "process",
+          "description": "ANSI/ISA-5.1 line type ('process', 'pneumatic', 'electric', 'digital', 'capillary')",
+          "enum": [
+            "process",
+            "pneumatic",
+            "electric",
+            "digital",
+            "capillary"
+          ],
+          "title": "Line Type",
+          "type": "string"
         },
         "manual_routing": {
           "items": {
@@ -845,6 +1095,13 @@
     },
     "components": {
       "$ref": "#/$defs/ComponentsSchema"
+    },
+    "equipment": {
+      "items": {
+        "$ref": "#/$defs/EquipmentSchema"
+      },
+      "title": "Equipment",
+      "type": "array"
     },
     "streams": {
       "items": {
