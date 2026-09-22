@@ -91,7 +91,7 @@ class Flowsheet:
             )
 
         self.streams[name] = Stream(name, fromPort, toPort)
-        return
+        return self.streams[name]
 
     def _calcGrid(self):
         """Private helper function to rasterize canvas and generate course grid for pathfinding.
@@ -185,15 +185,22 @@ class Flowsheet:
             [type]: The same context as was passed in
         """
 
-        matrix, minx, miny = self._calcGrid()
-        grid = Grid(matrix=matrix)
+        has_unrouted = any(
+            not s.calculated_route and len(s.manualRouting) == 0 for s in self.streams.values()
+        )
+        if (has_unrouted or self.showGrid) and len(self.unitOperations) > 0:
+            matrix, minx, miny = self._calcGrid()
+            grid = Grid(matrix=matrix)
+        else:
+            matrix, minx, miny = None, 0, 0
+            grid = None
 
         for s in self.streams.values():
             ctx.startGroup(s.id)
             s.draw(ctx, grid, minx, miny)
             ctx.endGroup()
 
-        if self.showGrid:
+        if self.showGrid and grid is not None:
             self._drawGrid(grid, ctx, minx, miny)
 
         # print(grid.grid_str(show_weight=True))
@@ -212,6 +219,152 @@ class Flowsheet:
             ctx.endGroup()
 
         return ctx
+
+    def auto_layout(
+        self,
+        origin: tuple[float, float] = (60.0, 100.0),
+        bay_width: float = 160.0,
+        bay_height: float = 120.0,
+        force_reposition: bool = False,
+    ) -> None:
+        """Executes automated two-tier macro layout, obstacle-avoiding orthogonal routing,
+        stream crossover bridge detection, and collision-free label placement.
+        """
+        from collections import defaultdict
+
+        from ..layout.crossover import CrossoverDetector
+        from ..layout.inline import InlineSequencer
+        from ..layout.labels import LabelPlacementSolver
+        from ..layout.macro import MacroLayoutSolver
+        from ..layout.router import OrthogonalRouter
+        from ..layout.spatial import AABB, SpatialIndex
+
+        # 1. Tier 1: Macro Layout
+        units_spec = []
+        for uid, u in self.unitOperations.items():
+            pos = u.position
+            if force_reposition and not (
+                getattr(u, "fixed", False) or getattr(u, "is_fixed", False)
+            ):
+                pos = (0.0, 0.0)
+            spec = {
+                "id": uid,
+                "size": u.size,
+                "position": pos,
+                "layout_hints": getattr(u, "layout_hints", None),
+                "fixed": getattr(u, "fixed", False) or getattr(u, "is_fixed", False),
+            }
+            units_spec.append(spec)
+
+        streams_spec = []
+        for s in self.streams.values():
+            u_from = getattr(s.fromPort, "unitoperation", getattr(s.fromPort, "parent", None))
+            u_to = getattr(s.toPort, "unitoperation", getattr(s.toPort, "parent", None))
+            from_id = u_from.id if u_from is not None else None
+            to_id = u_to.id if u_to is not None else None
+            if from_id and to_id:
+                streams_spec.append((s.id, from_id, to_id))
+
+        macro_solver = MacroLayoutSolver(
+            units=units_spec,
+            streams=streams_spec,
+            origin=origin,
+            bay_width=bay_width,
+            bay_height=bay_height,
+        )
+        resolved_positions = macro_solver.solve()
+
+        for uid, pos in resolved_positions.items():
+            if uid in self.unitOperations:
+                self.unitOperations[uid].position = pos
+
+        # 2. Build Spatial Index of Equipment Obstacles
+        spatial_index = SpatialIndex()
+        for uid, u in self.unitOperations.items():
+            box = AABB(
+                u.position[0],
+                u.position[1],
+                u.position[0] + u.size[0],
+                u.position[1] + u.size[1],
+            )
+            spatial_index.insert(uid, box, data=u)
+
+        # 3. Tier 2: Orthogonal Routing
+        obstacles = [item[1] for item in spatial_index.all_items()]
+        router = OrthogonalRouter(grid_size=10.0, turn_penalty=60.0)
+
+        routed_streams: dict[str, list[tuple[float, float]]] = {}
+        for s in self.streams.values():
+            if not s.manualRouting:
+                p_start = s.fromPort.get_position()
+                n_start = s.fromPort.normal
+                p_end = s.toPort.get_position()
+                n_end = s.toPort.normal
+
+                route = router.route(
+                    start=p_start,
+                    start_normal=n_start,
+                    end=p_end,
+                    end_normal=n_end,
+                    obstacles=obstacles,
+                )
+                s.calculated_route = route
+                routed_streams[s.id] = route
+            else:
+                pts = [s.fromPort.get_position()]
+                for step in s.manualRouting:
+                    pts.append((pts[-1][0] + step[0], pts[-1][1] + step[1]))
+                pts.append(s.toPort.get_position())
+                s.calculated_route = pts
+                routed_streams[s.id] = pts
+
+        # 4. Stream Crossover Bridges
+        crossover_detector = CrossoverDetector(bridge_radius=6.0)
+        bridges = crossover_detector.find_crossings(routed_streams)
+        bridges_by_stream: dict[str, list[Any]] = defaultdict(list)
+        for b in bridges:
+            bridges_by_stream[b.bridging_stream].append(b)
+
+        for sid, stream_obj in self.streams.items():
+            stream_obj.crossover_bridges = bridges_by_stream.get(sid, [])
+
+        # 5. Inline Component Sequencing & Knockout Masks
+        sequencer = InlineSequencer()
+        for s in self.streams.values():
+            seq = getattr(s, "line_sequence", None)
+            if not seq and hasattr(s, "associated_components") and s.associated_components:
+                if isinstance(s.associated_components, dict):
+                    seq = s.associated_components.get("line_sequence", [])
+                else:
+                    seq = getattr(s.associated_components, "line_sequence", [])
+            if seq and s.calculated_route:
+                sizes = {uid: self.unitOperations[uid].size for uid in self.unitOperations}
+                placements = sequencer.sequence(s.calculated_route, seq, sizes)
+                for cid, placement in placements.items():
+                    if cid in self.unitOperations:
+                        u = self.unitOperations[cid]
+                        u.position = (
+                            placement.center[0] - u.size[0] / 2.0,
+                            placement.center[1] - u.size[1] / 2.0,
+                        )
+                    s.knockout_masks.append(placement.knockout_box)
+
+        # 6. Stream Label Positioning
+        label_solver = LabelPlacementSolver()
+        for s in self.streams.values():
+            if len(s.calculated_route) >= 2 and s.labelOffset == (0, 10):
+                try:
+                    lw = max(len(s.id) * 8.0, 30.0)
+                    pos, _ = label_solver.place_stream_label(
+                        stream_id=s.id,
+                        waypoints=s.calculated_route,
+                        label_size=(lw, 12.0),
+                        spatial_index=spatial_index,
+                    )
+                    start_pt = s.calculated_route[0]
+                    s.labelOffset = (pos[0] - start_pt[0], pos[1] - start_pt[1])
+                except Exception:
+                    pass
 
     @classmethod
     def _from_schema(cls, schema: Any) -> "Flowsheet":
@@ -244,6 +397,10 @@ class Flowsheet:
                 stream_obj.manualRouting = [tuple(pt) for pt in s.manual_routing]
             if s.label_offset != (0.0, 10.0):
                 stream_obj.labelOffset = tuple(s.label_offset)
+            if getattr(s, "associated_components", None):
+                stream_obj.associated_components = s.associated_components
+                if hasattr(s.associated_components, "line_sequence"):
+                    stream_obj.line_sequence = s.associated_components.line_sequence
 
         # 3. Preserve tables and settings
         if getattr(schema, "tables", None):

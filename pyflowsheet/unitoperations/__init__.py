@@ -10,10 +10,13 @@ from .streamflag import StreamFlag
 from .valve import Valve
 from .vessel import Vessel
 
+DistillationColumn = Distillation
+
 __all__ = [
     "BlackBox",
     "Compressor",
     "Distillation",
+    "DistillationColumn",
     "HeatExchanger",
     "Mixer",
     "PlateHex",

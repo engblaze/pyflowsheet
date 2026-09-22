@@ -36,6 +36,7 @@ UNIT_REGISTRY: dict[str, type[UnitOperation]] = {
     "BlackBox": BlackBox,
     "Compressor": Compressor,
     "Distillation": Distillation,
+    "DistillationColumn": Distillation,
     "HeatExchanger": HeatExchanger,
     "Mixer": Mixer,
     "PlateHex": PlateHex,
@@ -196,5 +197,8 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
 
         offset = eq.text_anchor.offset
         unit.setTextAnchor(h, v, offset)
+
+    if eq.layout_hints is not None:
+        unit.layout_hints = eq.layout_hints
 
     return unit

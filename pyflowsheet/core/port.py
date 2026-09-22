@@ -10,6 +10,10 @@ class Port:
         self.parent = parent
         self.intent = intent
 
+    @property
+    def unitoperation(self):
+        return self.parent
+
     def get_position(self):
 
         base_x = self.parent.position[0] + self.relativePosition[0] * self.parent.size[0]

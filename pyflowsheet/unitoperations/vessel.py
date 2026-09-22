@@ -26,7 +26,9 @@ class Vessel(UnitOperation):
         self.ports = {}
 
         self.ports["In"] = Port("In", self, (0.5, 1), (0, 1))
+        self.ports["In2"] = Port("In2", self, (0.2, 1), (0, 1))
         self.ports["Out"] = Port("Out", self, (0.5, 0), (0, -1), intent="out")
+        self.ports["Out2"] = Port("Out2", self, (0.8, 0), (0, -1), intent="out")
 
     def _drawBasicShape(self, ctx):
         if self.capLength == None:

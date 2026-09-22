@@ -37,6 +37,7 @@ class Distillation(UnitOperation):
                 (1, 0),
                 intent="out",
             )
+            self.ports["Distillate"] = self.ports["Top"]
         else:
             self.ports["VOut"] = Port("VOut", self, (0.5, 0), (0, -1), intent="out")
             self.ports["RIn"] = Port("RIn", self, (1.0, self.size[0] / 2 / self.size[1]), (1, 0))
@@ -49,6 +50,7 @@ class Distillation(UnitOperation):
                 (1, 0),
                 intent="out",
             )
+            self.ports["Bottoms"] = self.ports["Bottom"]
         else:
             self.ports["LOut"] = Port("LOut", self, (0.5, 1), (0, 1), intent="out")
             self.ports["VIn"] = Port(

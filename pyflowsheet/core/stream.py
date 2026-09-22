@@ -1,3 +1,5 @@
+from typing import Any
+
 from .pathfinder import Pathfinder, compressPath
 
 
@@ -15,23 +17,49 @@ class Stream:
         self.manualRouting = []
         self.showPoints = False
         self.labelOffset = (0, 10)
+        self.calculated_route: list[tuple[float, float]] = []
+        self.crossover_bridges: list[Any] = []
+        self.knockout_masks: list[Any] = []
 
-    def draw(self, ctx, grid, minx, miny):
-
-        if len(self.manualRouting) == 0:
+    def draw(self, ctx, grid=None, minx=0, miny=0):
+        if self.calculated_route:
+            points = self.calculated_route
+            startAnchor = points[0]
+        elif len(self.manualRouting) == 0 and grid is not None:
             points, startAnchor = self._calculateAutoRoute(minx, miny, grid)
         else:
             points = []
             points.append(self.fromPort.get_position())
-
             for step in self.manualRouting:
                 p = (points[-1][0] + step[0], points[-1][1] + step[1])
                 points.append(p)
-
             points.append(self.toPort.get_position())
             startAnchor = points[0]
 
-        ctx.path(points, None, self.lineColor, self.lineSize, False, self.dashArray, True)
+        if hasattr(ctx, "raw_path") and self.crossover_bridges:
+            from ..layout.crossover import CrossoverDetector
+
+            detector = CrossoverDetector()
+            d_str = detector.build_svg_path_commands(points, self.crossover_bridges)
+            ctx.raw_path(
+                d_str,
+                fillColor=None,
+                lineColor=self.lineColor,
+                lineSize=self.lineSize,
+                dashArray=self.dashArray,
+                endMarker=True,
+            )
+        else:
+            ctx.path(points, None, self.lineColor, self.lineSize, False, self.dashArray, True)
+
+        # Draw knockout masks if any
+        for box in self.knockout_masks:
+            ctx.rectangle(
+                [(box.min_x, box.min_y), (box.max_x, box.max_y)],
+                fillColor=(255, 255, 255, 255),
+                lineColor=(255, 255, 255, 0),
+                lineSize=0,
+            )
 
         if self.showPoints:
             for p in points:
@@ -42,19 +70,21 @@ class Stream:
                     1,
                 )
 
-        textAnchor = (
-            startAnchor[0] + self.labelOffset[0],
-            startAnchor[1] + self.labelOffset[1],
-        )
-        ctx.text(
-            textAnchor,
-            text=self.id,
-            fontFamily=self.fontFamily,
-            textColor=self.textColor,
-            fontSize="10",
-        )
+        if self.showTitle:
+            textAnchor = (
+                startAnchor[0] + self.labelOffset[0],
+                startAnchor[1] + self.labelOffset[1],
+            )
+            ctx.text(
+                textAnchor,
+                text=self.id,
+                fontFamily=self.fontFamily,
+                textColor=self.textColor,
+                fontSize="10",
+            )
 
-        grid.cleanup()
+        if grid is not None:
+            grid.cleanup()
 
         return
 
