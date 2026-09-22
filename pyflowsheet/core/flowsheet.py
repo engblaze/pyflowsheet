@@ -75,13 +75,15 @@ class Flowsheet:
         self.unitOperations[unitoperation.id] = unitoperation
         return unitoperation
 
-    def connect(self, name, fromPort, toPort):
+    def connect(self, name, fromPort, toPort, line_type: str = "process"):
         """Connect two ports of two unit operations with a stream.
 
         Args:
             name (string): The identifier/name of the stream.
             fromPort (Port): The source port from which to route the stream
             toPort (Port): The destination port to which to route the stream
+            line_type (string): ANSI/ISA-5.1 line type ('process', 'pneumatic',
+                'electric', 'digital', 'capillary')
         """
         if name in self.streams:
             raise ValueError(
@@ -90,7 +92,7 @@ class Flowsheet:
                 "access it directly with the flowsheet.streams[] accessor."
             )
 
-        self.streams[name] = Stream(name, fromPort, toPort)
+        self.streams[name] = Stream(name, fromPort, toPort, line_type=line_type)
         return self.streams[name]
 
     def _calcGrid(self):
@@ -391,7 +393,8 @@ class Flowsheet:
             from_port = from_unit[s.from_endpoint.port]
             to_port = to_unit[s.to_endpoint.port]
 
-            flowsheet.connect(s.id, from_port, to_port)
+            line_type = getattr(s, "line_type", "process")
+            flowsheet.connect(s.id, from_port, to_port, line_type=line_type)
             stream_obj = flowsheet.streams[s.id]
 
             if s.manual_routing:
@@ -529,6 +532,8 @@ class Flowsheet:
                     "port": s.toPort.name,
                 },
             }
+            if hasattr(s, "line_type") and s.line_type:
+                s_data["line_type"] = s.line_type
             if s.manualRouting:
                 s_data["manual_routing"] = [[float(pt[0]), float(pt[1])] for pt in s.manualRouting]
             if s.labelOffset != (0, 10):

@@ -3,6 +3,7 @@ from typing import Any
 
 from ..core import Port, UnitOperation
 from ..core.enums import HorizontalLabelAlignment, VerticalLabelAlignment
+from ..instruments import Instrument
 from ..internals import (
     Baffles,
     CatalystBed,
@@ -13,35 +14,97 @@ from ..internals import (
     RandomPacking,
     Reciprocating,
     Stirrer,
+    StructuredPacking,
     Trays,
     Tubes,
 )
 from ..internals.baseinternal import BaseInternal
 from ..unitoperations import (
+    AirCooler,
     BlackBox,
+    Blower,
     Compressor,
+    Condenser,
     Distillation,
+    FiredHeater,
+    FlotationCell,
     HeatExchanger,
+    HorizontalSettler,
+    HorizontalVessel,
+    Hydrocyclone,
+    JacketedVessel,
+    MembraneModule,
     Mixer,
+    PeristalticPump,
     PlateHex,
+    ProgressiveCavityPump,
     Pump,
+    Reboiler,
+    ReciprocatingPump,
+    ShellAndTubeExchanger,
     Splitter,
     StreamFlag,
     Valve,
     Vessel,
 )
+from ..valves import (
+    BallValve,
+    ButterflyValve,
+    CheckValve,
+    ControlValve,
+    DiaphragmValve,
+    GateValve,
+    GlobeValve,
+    GrabSamplingTee,
+    NeedleValve,
+    PlugValve,
+    RuptureDisc,
+    SafetyReliefValve,
+    SteamTrap,
+    Strainer,
+)
 from .models import EquipmentSchema, InternalSchema
 
 UNIT_REGISTRY: dict[str, type[UnitOperation]] = {
+    "AirCooler": AirCooler,
+    "BallValve": BallValve,
     "BlackBox": BlackBox,
+    "Blower": Blower,
+    "ButterflyValve": ButterflyValve,
+    "CheckValve": CheckValve,
     "Compressor": Compressor,
+    "Condenser": Condenser,
+    "ControlValve": ControlValve,
+    "DiaphragmValve": DiaphragmValve,
     "Distillation": Distillation,
     "DistillationColumn": Distillation,
+    "FiredHeater": FiredHeater,
+    "FlotationCell": FlotationCell,
+    "GateValve": GateValve,
+    "GlobeValve": GlobeValve,
+    "GrabSamplingTee": GrabSamplingTee,
     "HeatExchanger": HeatExchanger,
+    "HorizontalSettler": HorizontalSettler,
+    "HorizontalVessel": HorizontalVessel,
+    "Hydrocyclone": Hydrocyclone,
+    "Instrument": Instrument,
+    "JacketedVessel": JacketedVessel,
+    "MembraneModule": MembraneModule,
     "Mixer": Mixer,
+    "NeedleValve": NeedleValve,
+    "PeristalticPump": PeristalticPump,
     "PlateHex": PlateHex,
+    "PlugValve": PlugValve,
+    "ProgressiveCavityPump": ProgressiveCavityPump,
     "Pump": Pump,
+    "Reboiler": Reboiler,
+    "ReciprocatingPump": ReciprocatingPump,
+    "RuptureDisc": RuptureDisc,
+    "SafetyReliefValve": SafetyReliefValve,
+    "ShellAndTubeExchanger": ShellAndTubeExchanger,
     "Splitter": Splitter,
+    "SteamTrap": SteamTrap,
+    "Strainer": Strainer,
     "StreamFlag": StreamFlag,
     "Valve": Valve,
     "Vessel": Vessel,
@@ -57,6 +120,7 @@ INTERNAL_REGISTRY: dict[str, type[BaseInternal]] = {
     "RandomPacking": RandomPacking,
     "Reciprocating": Reciprocating,
     "Stirrer": Stirrer,
+    "StructuredPacking": StructuredPacking,
     "Trays": Trays,
     "Tubes": Tubes,
 }
@@ -103,6 +167,11 @@ def instantiate_internal(internal_schema: InternalSchema) -> BaseInternal:
         start = extra.get("start", 0.0)
         end = extra.get("end", 1.0)
         return RandomPacking(start=start, end=end)
+    if itype == "StructuredPacking":
+        start = extra.get("start", 0.0)
+        end = extra.get("end", 1.0)
+        spacing = extra.get("spacing", 10.0)
+        return StructuredPacking(start=start, end=end, spacing=spacing)
     if itype == "Trays":
         start = extra.get("start", 0.0)
         end = extra.get("end", 1.0)
@@ -132,10 +201,19 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
         "description": eq.description,
     }
 
-    if eq.type == "Vessel":
+    if eq.type == "ControlValve":
+        kwargs["body_type"] = eq.valve_type or "globe"
+        kwargs["actuator"] = eq.actuator or "pneumatic"
+        kwargs["failure_mode"] = eq.failure_mode or "fail_closed"
+    elif eq.type == "Instrument":
+        kwargs["tag"] = eq.tag or eq.id
+        kwargs["balloon_type"] = eq.balloon_type or "discrete"
+        kwargs["location"] = eq.location or "field"
+    elif eq.type == "Vessel":
         if eq.cap_length is not None:
             kwargs["capLength"] = eq.cap_length
         kwargs["internals"] = internals
+        kwargs["head_type"] = eq.head_type or "dished"
     elif eq.type in ("Compressor", "Pump"):
         kwargs["internals"] = internals
     elif eq.type == "Distillation":
@@ -151,6 +229,10 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
                 kwargs["hasReboiler"] = eq.model_extra["hasReboiler"]
     else:
         init_params = signature(cls.__init__).parameters
+        if "capLength" in init_params and eq.cap_length is not None:
+            kwargs["capLength"] = eq.cap_length
+        if "head_type" in init_params:
+            kwargs["head_type"] = eq.head_type or "dished"
         has_internals_param = "internals" in init_params or any(
             p.kind == Parameter.VAR_KEYWORD for p in init_params.values()
         )
