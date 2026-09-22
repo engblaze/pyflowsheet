@@ -16,6 +16,13 @@ from .bodies import (
     NeedleValve,
     PlugValve,
 )
+from .specialties import (
+    GrabSamplingTee,
+    RuptureDisc,
+    SafetyReliefValve,
+    SteamTrap,
+    Strainer,
+)
 
 __all__ = [
     "ActuatorKind",
@@ -30,6 +37,11 @@ __all__ = [
     "FailureMode",
     "GateValve",
     "GlobeValve",
+    "GrabSamplingTee",
     "NeedleValve",
     "PlugValve",
+    "RuptureDisc",
+    "SafetyReliefValve",
+    "SteamTrap",
+    "Strainer",
 ]
