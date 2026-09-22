@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyflowsheet"
-version = "0.3.0"
+version = "0.4.0"
 description = "A Python library for creating professional process flow diagrams (PFD) and P&IDs using SVG drawings."
 readme = "readme.md"
 license = { text = "MIT" }
@@ -28,7 +28,12 @@ classifiers = [
 dependencies = [
     "svgwrite>=1.4.3",
     "pathfinding>=1.0.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
 ]
+
+[project.scripts]
+pyflowsheet = "pyflowsheet.cli:main"
 
 [project.optional-dependencies]
 plots = [
