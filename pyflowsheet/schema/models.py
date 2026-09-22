@@ -1,6 +1,13 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+LineType = Literal["process", "pneumatic", "electric", "digital", "capillary"]
+BalloonType = Literal["discrete", "shared_display", "computer_function", "plc"]
+LocationModifier = Literal["field", "control_room", "behind_panel", "secondary"]
+ActuatorType = Literal["manual", "pneumatic", "electric", "solenoid", "piston"]
+FailureMode = Literal["none", "fail_closed", "fail_open", "fail_locked", "fail_indeterminate"]
+HeadType = Literal["dished", "conical", "flat"]
 
 
 class MetadataRevisionSchema(BaseModel):
@@ -103,6 +110,27 @@ class EquipmentSchema(BaseModel):
     flip_horizontal: bool = False
     flip_vertical: bool = False
     cap_length: float | None = None
+    valve_type: str | None = Field(
+        default=None, description="Valve body type (globe, gate, ball, etc.)"
+    )
+    actuator: ActuatorType | None = Field(
+        default=None, description="Actuator type for control valves"
+    )
+    failure_mode: FailureMode | None = Field(
+        default=None, description="Actuator failure mode position"
+    )
+    tag: str | None = Field(
+        default=None, description="ANSI/ISA-5.1 tag identifier (e.g. 'FIT-101')"
+    )
+    balloon_type: BalloonType | None = Field(
+        default=None, description="Instrument balloon symbol type"
+    )
+    location: LocationModifier | None = Field(
+        default=None, description="Instrument location modifier"
+    )
+    head_type: HeadType | None = Field(
+        default=None, description="Vessel head type (dished, conical, flat)"
+    )
     internals: list[InternalSchema] = Field(default_factory=list)
     ports: list[PortSchema] = Field(default_factory=list)
     text_anchor: TextAnchorSchema | None = None
@@ -117,6 +145,16 @@ class StreamEndpointSchema(BaseModel):
 
     unit: str
     port: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_endpoint(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            if ":" in data:
+                unit, port = data.split(":", 1)
+                return {"unit": unit, "port": port}
+            return {"unit": data, "port": ""}
+        return data
 
 
 class StreamAssociatedComponentsSchema(BaseModel):
@@ -136,9 +174,33 @@ class StreamSchema(BaseModel):
     description: str = ""
     from_endpoint: StreamEndpointSchema = Field(alias="from")
     to_endpoint: StreamEndpointSchema = Field(alias="to")
+    line_type: LineType = Field(
+        default="process",
+        description=(
+            "ANSI/ISA-5.1 line type ('process', 'pneumatic', 'electric', 'digital', 'capillary')"
+        ),
+    )
     manual_routing: list[tuple[float, float]] = Field(default_factory=list)
     label_offset: tuple[float, float] = (0.0, 10.0)
     associated_components: StreamAssociatedComponentsSchema | dict[str, Any] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_endpoints(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "from_port" in data and "from" not in data and "from_endpoint" not in data:
+                data["from"] = data.pop("from_port")
+            if "to_port" in data and "to" not in data and "to_endpoint" not in data:
+                data["to"] = data.pop("to_port")
+        return data
+
+    @property
+    def from_port(self) -> str:
+        return f"{self.from_endpoint.unit}:{self.from_endpoint.port}"
+
+    @property
+    def to_port(self) -> str:
+        return f"{self.to_endpoint.unit}:{self.to_endpoint.port}"
 
 
 class TableSchema(BaseModel):
@@ -176,6 +238,15 @@ class FlowsheetSchema(BaseModel):
     schema_version: str = "1.0"
     metadata: MetadataSchema = Field(default_factory=MetadataSchema)
     components: ComponentsSchema = Field(default_factory=ComponentsSchema)
+    equipment: list[EquipmentSchema] = Field(default_factory=list)
     streams: list[StreamSchema] = Field(default_factory=list)
     tables: list[TableSchema] = Field(default_factory=list)
     settings: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _sync_equipment(self) -> "FlowsheetSchema":
+        if self.equipment and not self.components.equipment:
+            self.components.equipment = list(self.equipment)
+        elif self.components.equipment and not self.equipment:
+            self.equipment = list(self.components.equipment)
+        return self

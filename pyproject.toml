@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyflowsheet"
-version = "0.5.0"
+version = "0.6.0"
 description = "A Python library for creating professional process flow diagrams (PFD) and P&IDs using SVG drawings."
 readme = "readme.md"
 license = { text = "MIT" }
