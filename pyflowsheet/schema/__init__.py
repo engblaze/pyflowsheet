@@ -12,11 +12,19 @@ from .models import (
     TableSchema,
     TextAnchorSchema,
 )
+from .validator import (
+    FlowsheetValidationError,
+    validate_dict,
+    validate_flowsheet_integrity,
+    validate_yaml_file,
+    validate_yaml_string,
+)
 
 __all__ = [
     "ComponentsSchema",
     "EquipmentSchema",
     "FlowsheetSchema",
+    "FlowsheetValidationError",
     "InternalSchema",
     "MetadataRevisionSchema",
     "MetadataSchema",
@@ -26,4 +34,8 @@ __all__ = [
     "StreamSchema",
     "TableSchema",
     "TextAnchorSchema",
+    "validate_dict",
+    "validate_flowsheet_integrity",
+    "validate_yaml_file",
+    "validate_yaml_string",
 ]
