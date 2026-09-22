@@ -12,6 +12,14 @@ from .models import (
     TableSchema,
     TextAnchorSchema,
 )
+from .registry import (
+    INTERNAL_REGISTRY,
+    UNIT_REGISTRY,
+    instantiate_internal,
+    instantiate_unit,
+    register_internal_type,
+    register_unit_type,
+)
 from .validator import (
     FlowsheetValidationError,
     validate_dict,
@@ -25,6 +33,7 @@ __all__ = [
     "EquipmentSchema",
     "FlowsheetSchema",
     "FlowsheetValidationError",
+    "INTERNAL_REGISTRY",
     "InternalSchema",
     "MetadataRevisionSchema",
     "MetadataSchema",
@@ -34,6 +43,11 @@ __all__ = [
     "StreamSchema",
     "TableSchema",
     "TextAnchorSchema",
+    "UNIT_REGISTRY",
+    "instantiate_internal",
+    "instantiate_unit",
+    "register_internal_type",
+    "register_unit_type",
     "validate_dict",
     "validate_flowsheet_integrity",
     "validate_yaml_file",
