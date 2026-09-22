@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyflowsheet"
+version = "0.3.0"
+description = "A Python library for creating professional process flow diagrams (PFD) and P&IDs using SVG drawings."
+readme = "readme.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Jochen Steimel", email = "jochen.steimel@googlemail.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+    "svgwrite>=1.4.3",
+    "pathfinding>=1.0.0",
+]
+
+[project.optional-dependencies]
+plots = [
+    "matplotlib>=3.7.0",
+    "pandas>=2.0.0",
+]
+pdf = [
+    "cairosvg>=2.7.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+]
+all = [
+    "pyflowsheet[plots,pdf,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/engblaze/pyflowsheet"
+Repository = "https://github.com/engblaze/pyflowsheet"
+Issues = "https://github.com/engblaze/pyflowsheet/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyflowsheet"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E711", # comparison to None (legacy code uses == None)
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
