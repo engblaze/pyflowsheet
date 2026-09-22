@@ -21,26 +21,47 @@ def svg_ctx(tmp_path):
 def test_specialties_ports():
     # PSV: angle valve with inlet at bottom, outlet at right
     psv = SafetyReliefValve("PSV-101", position=(10, 10), size=(30, 30))
-    assert "In" in psv.ports
-    assert "Out" in psv.ports
+    assert "In" in psv.ports and "Out" in psv.ports
     assert psv.ports["In"].relativePosition == (0.5, 1.0)
+    assert psv.ports["In"].normal == (0, 1)
     assert psv.ports["Out"].relativePosition == (1.0, 0.5)
+    assert psv.ports["Out"].normal == (1, 0)
 
     # Rupture disc
     pse = RuptureDisc("PSE-102", position=(50, 10), size=(20, 20))
     assert "In" in pse.ports and "Out" in pse.ports
+    assert pse.ports["In"].relativePosition == (0.0, 0.5)
+    assert pse.ports["In"].normal == (-1, 0)
+    assert pse.ports["Out"].relativePosition == (1.0, 0.5)
+    assert pse.ports["Out"].normal == (1, 0)
 
-    # Sampling tee: has Sample port
+    # Sampling tee: has In, Out, and Sample ports
     sample = GrabSamplingTee("SMP-103", position=(90, 10), size=(25, 25))
-    assert "Sample" in sample.ports
+    assert "In" in sample.ports and "Out" in sample.ports and "Sample" in sample.ports
+    assert sample.ports["In"].relativePosition == (0.0, 0.5)
+    assert sample.ports["In"].normal == (-1, 0)
+    assert sample.ports["Out"].relativePosition == (1.0, 0.5)
+    assert sample.ports["Out"].normal == (1, 0)
+    assert sample.ports["Sample"].relativePosition == (0.5, 1.0)
+    assert sample.ports["Sample"].normal == (0, 1)
 
-    # Strainer: has Blowdown port
+    # Strainer: has In, Out, and Blowdown ports
     strn = Strainer("STR-104", position=(130, 10), size=(30, 20))
-    assert "Blowdown" in strn.ports
+    assert "In" in strn.ports and "Out" in strn.ports and "Blowdown" in strn.ports
+    assert strn.ports["In"].relativePosition == (0.0, 0.5)
+    assert strn.ports["In"].normal == (-1, 0)
+    assert strn.ports["Out"].relativePosition == (1.0, 0.5)
+    assert strn.ports["Out"].normal == (1, 0)
+    assert strn.ports["Blowdown"].relativePosition == (0.75, 1.0)
+    assert strn.ports["Blowdown"].normal == (0, 1)
 
-    # Steam trap
+    # Steam trap: has In and Out ports
     trap = SteamTrap("ST-105", position=(170, 10), size=(25, 25))
     assert "In" in trap.ports and "Out" in trap.ports
+    assert trap.ports["In"].relativePosition == (0.0, 0.5)
+    assert trap.ports["In"].normal == (-1, 0)
+    assert trap.ports["Out"].relativePosition == (1.0, 0.5)
+    assert trap.ports["Out"].normal == (1, 0)
 
 
 def test_specialties_draw(svg_ctx):

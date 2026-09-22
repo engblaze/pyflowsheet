@@ -163,7 +163,7 @@ class Strainer(UnitOperation):
     def draw(self, ctx) -> None:
         x, y = self.position
         w, h = self.size
-        cy = y + h * 0.4
+        cy = y + h * 0.5
         # Straight pipe body
         ctx.line((x, cy), (x + w, cy), self.lineColor, self.lineSize)
         # Angled strainer leg
