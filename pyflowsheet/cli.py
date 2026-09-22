@@ -29,9 +29,15 @@ def render_command(args: argparse.Namespace) -> int:
     flowsheet.showGrid = args.show_grid
     flowsheet.showPorts = args.show_ports
 
-    ctx = SvgContext(str(output_path))
-    flowsheet.draw(ctx)
-    ctx.render(saveFile=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        ctx = SvgContext(str(output_path))
+        flowsheet.draw(ctx)
+        ctx.render(saveFile=True)
+    except Exception as e:
+        sys.stderr.write(f"Error rendering '{input_path}': {e}\n")
+        return 1
 
     print(f"✓ Rendered flowsheet '{flowsheet.id}' to {output_path}")
     return 0

@@ -147,8 +147,7 @@ class Flowsheet:
                         1,
                     )
                 else:
-                    w = 255 - 10 * grid.node(x, y).weight
-                    w = max(w, 0)
+                    w = int(max(255 - 10 * grid.node(x, y).weight, 0))
                     ctx.circle(
                         [(sx - 5, sy - 5), (sx + 5, sy + 5)],
                         (w, w, w, 255),

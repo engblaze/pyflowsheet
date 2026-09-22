@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from pyflowsheet.cli import main
 
@@ -80,6 +81,65 @@ def test_cli_render_creates_svg(tmp_path, capsys):
     assert "<svg" in out_svg.read_text(encoding="utf-8")
 
 
+def test_cli_render_default_output_path(tmp_path, capsys):
+    yaml_file = tmp_path / "model.yaml"
+    src_yaml = Path("examples/water_treatment_flowsheet_v2.yaml").read_text(encoding="utf-8")
+    yaml_file.write_text(src_yaml, encoding="utf-8")
+    ret = main(["render", str(yaml_file)])
+    assert ret == 0
+    expected_svg = tmp_path / "model.svg"
+    assert expected_svg.exists()
+    assert "<svg" in expected_svg.read_text(encoding="utf-8")
+
+
+def test_cli_render_nested_output_directory(tmp_path, capsys):
+    nested_svg = tmp_path / "nested" / "sub" / "output.svg"
+    ret = main(
+        [
+            "render",
+            "examples/water_treatment_flowsheet_v2.yaml",
+            "-o",
+            str(nested_svg),
+        ]
+    )
+    assert ret == 0
+    assert nested_svg.exists()
+    assert "<svg" in nested_svg.read_text(encoding="utf-8")
+
+
+def test_cli_render_show_grid(tmp_path, capsys):
+    out_svg = tmp_path / "output_grid.svg"
+    ret = main(
+        [
+            "render",
+            "examples/water_treatment_flowsheet_v2.yaml",
+            "-o",
+            str(out_svg),
+            "--show-grid",
+        ]
+    )
+    assert ret == 0
+    assert out_svg.exists()
+    content = out_svg.read_text(encoding="utf-8")
+    assert "RoutingGrid" in content
+
+
+def test_cli_render_show_ports(tmp_path, capsys):
+    out_svg = tmp_path / "output_ports.svg"
+    ret = main(
+        [
+            "render",
+            "examples/water_treatment_flowsheet_v2.yaml",
+            "-o",
+            str(out_svg),
+            "--show-ports",
+        ]
+    )
+    assert ret == 0
+    assert out_svg.exists()
+    assert "<svg" in out_svg.read_text(encoding="utf-8")
+
+
 def test_cli_render_missing_file(capsys):
     ret = main(["render", "nonexistent_file.yaml"])
     assert ret == 1
@@ -132,6 +192,20 @@ def test_cli_render_unexpected_exception(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "Error loading" in captured.err
     assert "Render failure" in captured.err
+
+
+def test_cli_render_draw_exception(tmp_path, monkeypatch, capsys):
+    out_svg = tmp_path / "output.svg"
+
+    def mock_draw(self, ctx):
+        raise RuntimeError("Drawing canvas crash")
+
+    monkeypatch.setattr("pyflowsheet.core.Flowsheet.draw", mock_draw)
+    ret = main(["render", "examples/water_treatment_flowsheet_v2.yaml", "-o", str(out_svg)])
+    assert ret == 1
+    captured = capsys.readouterr()
+    assert "Error rendering" in captured.err
+    assert "Drawing canvas crash" in captured.err
 
 
 def test_cli_export_schema(tmp_path, capsys):
