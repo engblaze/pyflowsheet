@@ -94,8 +94,12 @@ class InlineSequencer:
             cy = p1[1] + t * (p2[1] - p1[1])
 
             size = sizes.get(cid, (20.0, 20.0))
-            half_w = size[0] / 2.0 + self.knockout_padding
-            half_h = size[1] / 2.0 + self.knockout_padding
+            if orientation == "vertical":
+                half_w = size[1] / 2.0 + self.knockout_padding
+                half_h = size[0] / 2.0 + self.knockout_padding
+            else:
+                half_w = size[0] / 2.0 + self.knockout_padding
+                half_h = size[1] / 2.0 + self.knockout_padding
 
             knockout = AABB(cx - half_w, cy - half_h, cx + half_w, cy + half_h)
             placements[cid] = InlinePlacement(

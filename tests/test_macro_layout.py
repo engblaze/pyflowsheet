@@ -161,3 +161,22 @@ def test_flowsheet_graph_extract_dag_alias():
     assert ("S2", "B", "C") in dag_edges
     assert ("S3", "C", "A") not in dag_edges
     assert "S3" in graph.recycle_streams
+
+
+def test_macro_solver_explicit_none_size_and_offset():
+    units = [
+        {"id": "TARGET", "position": [100.0, 100.0], "size": None},
+        {
+            "id": "DEP",
+            "size": None,
+            "layout_hints": {
+                "relative_to": {"target": "TARGET", "direction": "right", "offset": None}
+            },
+        },
+    ]
+    solver = MacroLayoutSolver(units=units, streams=[])
+    positions = solver.solve()
+
+    assert positions["TARGET"] == (100.0, 100.0)
+    # Default target size (40, 40) + default offset 60.0 -> 100 + 40 + 60 = 200.0
+    assert positions["DEP"] == (200.0, 100.0)

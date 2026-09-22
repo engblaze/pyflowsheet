@@ -131,8 +131,14 @@ class CrossoverDetector:
                 r = b.radius
                 if is_v:  # Vertical segment
                     downward = p2[1] > p1[1]
-                    start_y = iy - r if downward else iy + r
-                    end_y = iy + r if downward else iy - r
+                    min_y = min(p1[1], p2[1])
+                    max_y = max(p1[1], p2[1])
+                    if downward:
+                        start_y = max(min_y, iy - r)
+                        end_y = min(max_y, iy + r)
+                    else:
+                        start_y = min(max_y, iy + r)
+                        end_y = max(min_y, iy - r)
                     commands.append(f"L {ix} {start_y}")
                     if b.style == "arc":
                         sweep = 1 if downward else 0
@@ -141,8 +147,14 @@ class CrossoverDetector:
                         commands.append(f"M {ix} {end_y}")
                 else:  # Horizontal segment
                     rightward = p2[0] > p1[0]
-                    start_x = ix - r if rightward else ix + r
-                    end_x = ix + r if rightward else ix - r
+                    min_x = min(p1[0], p2[0])
+                    max_x = max(p1[0], p2[0])
+                    if rightward:
+                        start_x = max(min_x, ix - r)
+                        end_x = min(max_x, ix + r)
+                    else:
+                        start_x = min(max_x, ix + r)
+                        end_x = max(min_x, ix - r)
                     commands.append(f"L {start_x} {iy}")
                     if b.style == "arc":
                         sweep = 1 if rightward else 0

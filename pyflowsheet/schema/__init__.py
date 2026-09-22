@@ -1,11 +1,14 @@
 from .models import (
+    AlignSchema,
     ComponentsSchema,
     EquipmentSchema,
     FlowsheetSchema,
     InternalSchema,
+    LayoutHintsSchema,
     MetadataRevisionSchema,
     MetadataSchema,
     PortSchema,
+    RelativeToSchema,
     StreamAssociatedComponentsSchema,
     StreamEndpointSchema,
     StreamSchema,
@@ -29,15 +32,18 @@ from .validator import (
 )
 
 __all__ = [
+    "AlignSchema",
     "ComponentsSchema",
     "EquipmentSchema",
     "FlowsheetSchema",
     "FlowsheetValidationError",
     "INTERNAL_REGISTRY",
     "InternalSchema",
+    "LayoutHintsSchema",
     "MetadataRevisionSchema",
     "MetadataSchema",
     "PortSchema",
+    "RelativeToSchema",
     "StreamAssociatedComponentsSchema",
     "StreamEndpointSchema",
     "StreamSchema",

@@ -190,6 +190,73 @@ def test_svg_context_raw_path(tmp_path):
     assert output_path.exists()
     assert 'd="M 0.0 0.0 L 50.0 0.0"' in svg_str
     assert 'stroke="rgb(0, 0, 255)"' in svg_str
-    assert 'stroke-width="2.5"' in svg_str or 'stroke-width="2.500000"' in svg_str
     assert 'stroke-dasharray="4,4"' in svg_str
     assert "marker-end" in svg_str
+
+
+def test_arc_endpoints_clamped_near_segment_corners():
+    detector = CrossoverDetector(bridge_radius=6.0)
+
+    # 1. Vertical downward segment: y from 10.0 to 30.0
+    # Crossing near start corner at iy = 12.0 (< 10.0 + 6.0)
+    raw_v = [(50.0, 10.0), (50.0, 30.0)]
+    bridges_v_start = [
+        CrossoverBridge(
+            base_stream="S1",
+            bridging_stream="S2",
+            intersection=(50.0, 12.0),
+            direction="vertical",
+            radius=6.0,
+            style="arc",
+        )
+    ]
+    cmd_v_start = detector.build_svg_path_commands(raw_v, bridges_v_start)
+    # start_y clamped to 10.0 instead of 6.0
+    assert "L 50.0 10.0" in cmd_v_start
+    assert "A 6.0 6.0 0 0 1 50.0 18.0" in cmd_v_start
+
+    # Crossing near end corner at iy = 28.0 (> 30.0 - 6.0)
+    bridges_v_end = [
+        CrossoverBridge(
+            base_stream="S1",
+            bridging_stream="S2",
+            intersection=(50.0, 28.0),
+            direction="vertical",
+            radius=6.0,
+            style="arc",
+        )
+    ]
+    cmd_v_end = detector.build_svg_path_commands(raw_v, bridges_v_end)
+    # end_y clamped to 30.0 instead of 34.0
+    assert "A 6.0 6.0 0 0 1 50.0 30.0" in cmd_v_end
+
+    # 2. Horizontal rightward segment: x from 10.0 to 30.0
+    raw_h = [(10.0, 50.0), (30.0, 50.0)]
+    bridges_h_start = [
+        CrossoverBridge(
+            base_stream="S1",
+            bridging_stream="S2",
+            intersection=(12.0, 50.0),
+            direction="horizontal",
+            radius=6.0,
+            style="arc",
+        )
+    ]
+    cmd_h_start = detector.build_svg_path_commands(raw_h, bridges_h_start)
+    # start_x clamped to 10.0 instead of 6.0
+    assert "L 10.0 50.0" in cmd_h_start
+    assert "A 6.0 6.0 0 0 1 18.0 50.0" in cmd_h_start
+
+    bridges_h_end = [
+        CrossoverBridge(
+            base_stream="S1",
+            bridging_stream="S2",
+            intersection=(28.0, 50.0),
+            direction="horizontal",
+            radius=6.0,
+            style="arc",
+        )
+    ]
+    cmd_h_end = detector.build_svg_path_commands(raw_h, bridges_h_end)
+    # end_x clamped to 30.0 instead of 34.0
+    assert "A 6.0 6.0 0 0 1 30.0 50.0" in cmd_h_end

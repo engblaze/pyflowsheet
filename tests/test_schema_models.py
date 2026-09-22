@@ -190,3 +190,22 @@ def test_schema_validation_errors():
     with pytest.raises(ValidationError):
         # Stream missing required 'from' endpoint
         StreamSchema.model_validate({"id": "S1", "to": {"unit": "U1", "port": "In"}})
+
+
+def test_schema_module_reexports_layout_models():
+    import pyflowsheet.schema as ps
+
+    assert hasattr(ps, "LayoutHintsSchema")
+    assert hasattr(ps, "RelativeToSchema")
+    assert hasattr(ps, "AlignSchema")
+    assert "LayoutHintsSchema" in ps.__all__
+    assert "RelativeToSchema" in ps.__all__
+    assert "AlignSchema" in ps.__all__
+
+    rel = ps.RelativeToSchema(target="TK-1", direction="below", offset=40.0)
+    assert rel.target == "TK-1"
+    align = ps.AlignSchema(**{"with": "TK-1", "axis": "vertical"})
+    assert align.with_unit == "TK-1"
+    hints = ps.LayoutHintsSchema(relative_to=rel, align=align)
+    assert hints.relative_to == rel
+    assert hints.align == align

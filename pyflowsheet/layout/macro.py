@@ -203,15 +203,15 @@ class MacroLayoutSolver:
                         else getattr(rel, "direction", "right")
                     )
                     offset = float(
-                        rel.get("offset", 60.0)
+                        (rel.get("offset") or 60.0)
                         if isinstance(rel, dict)
-                        else getattr(rel, "offset", 60.0)
+                        else (getattr(rel, "offset", None) or 60.0)
                     )
 
                     if target in positions:
                         tx, ty = positions[target]
-                        t_size = self.units[target].get("size", (40, 40))
-                        u_size = u.get("size", (40, 40))
+                        t_size = self.units[target].get("size") or (40, 40)
+                        u_size = u.get("size") or (40, 40)
                         new_pos = positions[uid]
 
                         if direction == "right":

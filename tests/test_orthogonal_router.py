@@ -131,3 +131,25 @@ def test_fallback_when_path_fully_blocked():
     assert len(path) >= 2
     assert path[0] == (0.0, 50.0)
     assert path[-1] == (200.0, 50.0)
+
+
+def test_matching_lead_points_with_obstacle():
+    router = OrthogonalRouter(grid_size=10.0)
+    # Lead points match at (30.0, 50.0)
+    start = (10.0, 50.0)
+    start_normal = (1.0, 0.0)
+    end = (50.0, 50.0)
+    end_normal = (-1.0, 0.0)
+    # Obstacle directly covering the lead point (30.0, 50.0)
+    obstacle = AABB(25.0, 45.0, 35.0, 55.0)
+
+    path = router.route(
+        start=start,
+        start_normal=start_normal,
+        end=end,
+        end_normal=end_normal,
+        obstacles=[obstacle],
+    )
+    assert len(path) >= 2
+    assert path[0] == start
+    assert path[-1] == end

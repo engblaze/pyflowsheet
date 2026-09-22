@@ -74,7 +74,7 @@ class OrthogonalRouter:
             return False
 
         # If lead points match and no obstacle, direct connect
-        if p_start_lead == p_end_lead:
+        if p_start_lead == p_end_lead and not is_blocked(p_start_lead):
             return compress_orthogonal_path([start, p_start_lead, end])
 
         # Priority queue for A*: (cost_f, cost_g, (x, y), dir_x, dir_y, path)

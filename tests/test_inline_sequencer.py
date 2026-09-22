@@ -108,3 +108,32 @@ def test_inline_sequencing_empty_and_invalid_inputs():
         )
         == {}
     )
+
+
+def test_inline_sequencing_vertical_non_square_knockout():
+    sequencer = InlineSequencer(knockout_padding=2.0)
+    sizes = {"VALVE": (30.0, 10.0)}
+
+    # Vertical pipe
+    v_placements = sequencer.sequence(
+        route=[(50.0, 0.0), (50.0, 100.0)],
+        line_sequence=["U1:Out", "VALVE", "U2:In"],
+        component_sizes=sizes,
+    )
+    assert "VALVE" in v_placements
+    v_box = v_placements["VALVE"].knockout_box
+    # Swapped: width uses size[1] (10 + 2*2 = 14), height uses size[0] (30 + 2*2 = 34)
+    assert v_box.width == 14.0
+    assert v_box.height == 34.0
+
+    # Horizontal pipe for comparison
+    h_placements = sequencer.sequence(
+        route=[(0.0, 50.0), (100.0, 50.0)],
+        line_sequence=["U1:Out", "VALVE", "U2:In"],
+        component_sizes=sizes,
+    )
+    assert "VALVE" in h_placements
+    h_box = h_placements["VALVE"].knockout_box
+    # Standard: width uses size[0] (30 + 4 = 34), height uses size[1] (10 + 4 = 14)
+    assert h_box.width == 34.0
+    assert h_box.height == 14.0
