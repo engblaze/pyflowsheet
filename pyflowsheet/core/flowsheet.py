@@ -331,6 +331,7 @@ class Flowsheet:
         # 5. Inline Component Sequencing & Knockout Masks
         sequencer = InlineSequencer()
         for s in self.streams.values():
+            s.knockout_masks = []
             seq = getattr(s, "line_sequence", None)
             if not seq and hasattr(s, "associated_components") and s.associated_components:
                 if isinstance(s.associated_components, dict):

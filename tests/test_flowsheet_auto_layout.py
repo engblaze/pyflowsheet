@@ -152,3 +152,23 @@ def test_flowsheet_auto_layout_stream_label_placement():
 
     # labelOffset should have been updated by label solver from default (0, 10)
     assert s.labelOffset != (0, 10)
+
+
+def test_flowsheet_auto_layout_idempotent_multiple_calls():
+    fs = Flowsheet("IDEMPOTENT_TEST", "Idempotency Test")
+    v1 = fs.unit(Vessel("TK1", "Source Tank", position=(50, 100), size=(40, 40)))
+    v2 = fs.unit(Vessel("TK2", "Dest Tank", position=(350, 100), size=(40, 40)))
+    fs.unit(Valve("V101", "Control Valve", position=(0, 0), size=(20, 20)))
+
+    s = fs.connect("S01", v1["Out"], v2["In"])
+    s.line_sequence = ["V101"]
+
+    for u in (v1, v2):
+        u.fixed = True
+
+    fs.auto_layout()
+    assert len(s.knockout_masks) == 1
+
+    # Second invocation must be idempotent and not accumulate duplicate knockout masks
+    fs.auto_layout()
+    assert len(s.knockout_masks) == 1
