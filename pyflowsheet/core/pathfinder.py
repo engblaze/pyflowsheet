@@ -10,7 +10,34 @@ except ImportError:
 from pathfinding.core.util import SQRT2
 from math import pow
 from pathfinding.core.util import backtrace, bi_backtrace
+from pathfinding.core.node import Node, GridNode
 import heapq
+
+# Ensure Node and GridNode support index access (step[0], step[1]) across pathfinding versions
+if not hasattr(Node, "__getitem__"):
+    def _node_getitem(self, index):
+        if hasattr(self, "x") and hasattr(self, "y"):
+            if index == 0:
+                return self.x
+            elif index == 1:
+                return self.y
+            elif index == 2 and getattr(self, "grid_id", None) is not None:
+                return self.grid_id
+        raise IndexError(f"Node index {index} out of range")
+
+    Node.__getitem__ = _node_getitem
+
+if not hasattr(GridNode, "__getitem__"):
+    def _gridnode_getitem(self, index):
+        if index == 0:
+            return self.x
+        elif index == 1:
+            return self.y
+        elif index == 2 and self.grid_id is not None:
+            return self.grid_id
+        raise IndexError(f"GridNode index {index} out of range")
+
+    GridNode.__getitem__ = _gridnode_getitem
 
 
 def distance(a, b):
@@ -85,32 +112,42 @@ class Pathfinder(AStarFinder):
         self.turnPenalty = turnPenalty
         return
 
-    def process_node(self, node, parent, end, open_list, open_value=True):
+    def process_node(self, *args, **kwargs):
         """
-        we check if the given node is path of the path by calculating its
-        cost and add or remove it from our path
-        :param node: the node we like to test
-            (the neighbor in A* or jump-node in JumpPointSearch)
-        :param parent: the parent node (the current node we like to test)
-        :param end: the end point to calculate the cost of the path
-        :param open_list: the list that keeps track of our current path
-        :param open_value: needed if we like to set the open list to something
-            else than True (used for bi-directional algorithms)
+        Check if the given node is part of the path by calculating its
+        cost and add or remove it from our path.
+        Supports both modern pathfinding (graph, node, parent, end, open_list, open_value)
+        and legacy pathfinding (node, parent, end, open_list, open_value).
         """
-        # calculate cost from current node (parent) to the next node (neighbor)
-        ng = self.calc_cost(parent, node)
+        if len(args) >= 5 and hasattr(args[0], "calc_cost"):
+            graph = args[0]
+            node = args[1]
+            parent = args[2]
+            end = args[3]
+            open_list = args[4]
+            open_value = args[5] if len(args) > 5 else kwargs.get("open_value", True)
+            ng = parent.g + graph.calc_cost(parent, node, self.weighted)
+        else:
+            graph = None
+            node = args[0]
+            parent = args[1]
+            end = args[2]
+            open_list = args[3]
+            open_value = args[4] if len(args) > 4 else kwargs.get("open_value", True)
+            ng = self.calc_cost(parent, node)
 
         lastDirection = (
             None
-            if parent.parent == None
+            if parent.parent is None
             else (parent.x - parent.parent.x, parent.y - parent.parent.y)
         )
+        currentDirection = (node.x - parent.x, node.y - parent.y)
         turned = (
             0
-            if lastDirection == None
+            if lastDirection is None
             else (
-                lastDirection[0] != parent.x - node.x
-                or lastDirection[1] != parent.y - node.y
+                lastDirection[0] != currentDirection[0]
+                or lastDirection[1] != currentDirection[1]
             )
         )
 
@@ -118,20 +155,27 @@ class Pathfinder(AStarFinder):
 
         if not node.opened or ng < node.g:
             node.g = ng
-            node.h = node.h or self.apply_heuristic(node, end) * self.weight
+            if graph is not None:
+                node.h = node.h or self.apply_heuristic(node, end, graph=graph)
+            else:
+                node.h = node.h or self.apply_heuristic(node, end) * self.weight
             # f is the estimated total cost from start to goal
             node.f = node.g + node.h
             node.parent = parent
 
-            if not node.opened:
-                heapq.heappush(open_list, node)
+            if hasattr(open_list, "push_node"):
+                open_list.push_node(node)
                 node.opened = open_value
             else:
-                # the node can be reached with smaller cost.
-                # Since its f value has been updated, we have to
-                # update its position in the open list
-                open_list.remove(node)
-                heapq.heappush(open_list, node)
+                if not node.opened:
+                    heapq.heappush(open_list, node)
+                    node.opened = open_value
+                else:
+                    # the node can be reached with smaller cost.
+                    # Since its f value has been updated, we have to
+                    # update its position in the open list
+                    open_list.remove(node)
+                    heapq.heappush(open_list, node)
 
     def calc_cost(self, node_a, node_b):
         """
