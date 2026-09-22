@@ -43,8 +43,6 @@ def validate_flowsheet_integrity(schema: FlowsheetSchema) -> list[str]:
     4. Each stream's 'to.unit' must exist in the defined component units.
     5. If a component defines explicit custom ports, any connected stream must reference
        a valid declared port.
-    6. If line_sequence is specified in stream associated_components, verify endpoints
-       match the stream.
     """
     errors: list[str] = []
 

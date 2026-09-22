@@ -55,9 +55,7 @@ def test_duplicate_stream_id_detected():
 def test_missing_stream_source_unit_detected():
     data = {
         "schema_version": "1.0",
-        "components": {
-            "equipment": [{"id": "V-102", "name": "Vessel 2", "type": "Vessel"}]
-        },
+        "components": {"equipment": [{"id": "V-102", "name": "Vessel 2", "type": "Vessel"}]},
         "streams": [
             {
                 "id": "S01",
@@ -74,9 +72,7 @@ def test_missing_stream_source_unit_detected():
 def test_missing_stream_target_unit_detected():
     data = {
         "schema_version": "1.0",
-        "components": {
-            "equipment": [{"id": "V-101", "name": "Vessel 1", "type": "Vessel"}]
-        },
+        "components": {"equipment": [{"id": "V-101", "name": "Vessel 1", "type": "Vessel"}]},
         "streams": [
             {
                 "id": "S01",

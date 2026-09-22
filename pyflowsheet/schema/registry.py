@@ -16,6 +16,7 @@ from ..internals import (
     Trays,
     Tubes,
 )
+from ..internals.baseinternal import BaseInternal
 from ..unitoperations import (
     BlackBox,
     Compressor,
@@ -45,7 +46,7 @@ UNIT_REGISTRY: dict[str, type[UnitOperation]] = {
     "Vessel": Vessel,
 }
 
-INTERNAL_REGISTRY: dict[str, Any] = {
+INTERNAL_REGISTRY: dict[str, type[BaseInternal]] = {
     "Baffles": Baffles,
     "CatalystBed": CatalystBed,
     "DiscDonutBaffles": DiscDonutBaffles,
@@ -79,12 +80,12 @@ def register_unit_type(name: str, cls: type[UnitOperation]) -> None:
     UNIT_REGISTRY[name] = cls
 
 
-def register_internal_type(name: str, cls: Any) -> None:
+def register_internal_type(name: str, cls: type[BaseInternal]) -> None:
     """Registers or overrides an internal type for schema deserialization."""
     INTERNAL_REGISTRY[name] = cls
 
 
-def instantiate_internal(internal_schema: InternalSchema) -> Any:
+def instantiate_internal(internal_schema: InternalSchema) -> BaseInternal:
     """Creates an internal instance (e.g. Stirrer, Tubes) from its schema."""
     itype = internal_schema.type
     cls = INTERNAL_REGISTRY.get(itype)

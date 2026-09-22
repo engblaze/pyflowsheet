@@ -97,11 +97,13 @@ def test_custom_unit_type_registration():
             super().__init__(id, name, position=position, size=size, description=description)
 
     register_unit_type("CustomSeparator", CustomSeparator)
-
-    eq = EquipmentSchema(id="SEP-01", type="CustomSeparator")
-    unit = instantiate_unit(eq)
-    assert isinstance(unit, CustomSeparator)
-    assert "CustomSeparator" in UNIT_REGISTRY
+    try:
+        eq = EquipmentSchema(id="SEP-01", type="CustomSeparator")
+        unit = instantiate_unit(eq)
+        assert isinstance(unit, CustomSeparator)
+        assert "CustomSeparator" in UNIT_REGISTRY
+    finally:
+        UNIT_REGISTRY.pop("CustomSeparator", None)
 
 
 def test_custom_internal_type_registration():
@@ -110,10 +112,12 @@ def test_custom_internal_type_registration():
             self.turns = turns
 
     register_internal_type("CustomCoil", CustomCoil)
-
-    internal = instantiate_internal(InternalSchema(type="CustomCoil"))
-    assert isinstance(internal, CustomCoil)
-    assert "CustomCoil" in INTERNAL_REGISTRY
+    try:
+        internal = instantiate_internal(InternalSchema(type="CustomCoil"))
+        assert isinstance(internal, CustomCoil)
+        assert "CustomCoil" in INTERNAL_REGISTRY
+    finally:
+        INTERNAL_REGISTRY.pop("CustomCoil", None)
 
 
 def test_unknown_unit_type_raises():
