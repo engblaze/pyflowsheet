@@ -1,11 +1,9 @@
 # Pyflowsheet Project
 
 ## Mission Statement
-This project is a Python package that is intended to support engineers in creating simple process flow diagrams (PFD) from code, without the need for a complex chart drawing tool or CAD program.
+**Pyflowsheet** is an open-source Python platform for creating professional, publication-quality, and printer-ready Process Flow Diagrams (PFD) and Piping & Instrumentation Diagrams (P&ID) from code and structured specifications (YAML/JSON). 
 
-The main use case is the visualization of flowsheets generated in textual modeling languages / process simulators and to present results in a graphical manner.
-
-This package is not intended to replace CAD applications or to create printer-ready Process Flow Diagrams: this is a tool for a process engineer to support internal communication and process documentation.
+Designed for chemical, process, and systems engineers, Pyflowsheet bridges the gap between process simulation models and standardized engineering deliverables—producing CAD-grade vector SVG and PDF documents compliant with ISO and ANSI/ISA standards without requiring complex manual drafting software.
 
 ## Project Status
 This project is very young and in the unstable alpha Phase. The public interface of the API and the function definitions may change with every release. Please treat every release as a change in the Major version, even though the major version will not change to 1 until a stable development pace has been reached.
