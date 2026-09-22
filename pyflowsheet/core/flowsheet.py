@@ -213,11 +213,9 @@ class Flowsheet:
         return ctx
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Flowsheet":
-        """Builds and validates a Flowsheet instance from a Python dictionary specification."""
-        from ..schema import instantiate_unit, validate_dict
-
-        schema = validate_dict(data)
+    def _from_schema(cls, schema: Any) -> "Flowsheet":
+        """Builds a Flowsheet instance from an already validated FlowsheetSchema."""
+        from ..schema import instantiate_unit
 
         flowsheet = cls(
             id=schema.metadata.id,
@@ -249,22 +247,42 @@ class Flowsheet:
         return flowsheet
 
     @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Flowsheet":
+        """Builds and validates a Flowsheet instance from a Python dictionary specification."""
+        from ..schema import validate_dict
+
+        schema = validate_dict(data)
+        return cls._from_schema(schema)
+
+    @classmethod
     def from_yaml(cls, source: str | Path | TextIO) -> "Flowsheet":
         """Loads and validates a Flowsheet instance from a YAML string, filepath, or file stream."""
         from ..schema import validate_yaml_file, validate_yaml_string
 
-        if isinstance(source, (str, Path)):
-            path = Path(source)
-            if path.exists() and path.is_file():
-                schema = validate_yaml_file(path)
+        if isinstance(source, Path):
+            schema = validate_yaml_file(source)
+        elif isinstance(source, str):
+            if "\n" in source or "\r" in source:
+                schema = validate_yaml_string(source)
+            elif source.lower().endswith((".yaml", ".yml")):
+                schema = validate_yaml_file(Path(source))
             else:
-                schema = validate_yaml_string(str(source))
+                try:
+                    path = Path(source)
+                    is_file = path.is_file()
+                except OSError:
+                    is_file = False
+
+                if is_file:
+                    schema = validate_yaml_file(path)
+                else:
+                    schema = validate_yaml_string(source)
         elif hasattr(source, "read"):
             schema = validate_yaml_string(source.read())
         else:
             raise TypeError(f"Unsupported source type for from_yaml: {type(source)}")
 
-        return cls.from_dict(schema.model_dump(by_alias=True))
+        return cls._from_schema(schema)
 
     def to_dict(self) -> dict[str, Any]:
         """Serializes this Flowsheet into a dictionary conforming to FlowsheetSchema."""

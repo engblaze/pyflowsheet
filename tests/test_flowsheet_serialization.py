@@ -56,6 +56,13 @@ def test_flowsheet_from_dict_and_to_dict_roundtrip():
     assert len(exported["streams"]) == 1
     assert exported["streams"][0]["id"] == "S1"
 
+    # Re-instantiate from exported dict to verify full cycle roundtrip
+    re_pfd = Flowsheet.from_dict(exported)
+    assert re_pfd.id == "ROUNDTRIP_TEST"
+    assert len(re_pfd.unitOperations) == 2
+    assert "S1" in re_pfd.streams
+    assert re_pfd.streams["S1"].manualRouting == [(20.0, 0.0), (0.0, 50.0)]
+
 
 def test_flowsheet_from_yaml_file_and_to_yaml(tmp_path):
     yaml_content = """
@@ -96,6 +103,39 @@ streams:
 
     reloaded = Flowsheet.from_yaml(Path(out_yaml))
     assert reloaded.id == "FILE_TEST"
+
+
+def test_flowsheet_from_yaml_raw_string():
+    raw_yaml = """
+schema_version: "1.0"
+metadata:
+  id: "RAW_YAML_TEST"
+  name: "Raw YAML String Test"
+components:
+  equipment:
+    - id: "V1"
+      name: "Tank"
+      type: "Vessel"
+      position: [0, 0]
+"""
+    pfd = Flowsheet.from_yaml(raw_yaml)
+    assert pfd.id == "RAW_YAML_TEST"
+    assert "V1" in pfd.unitOperations
+
+    # Test with large realistic YAML file read as text (>255 chars line/components)
+    wt_text = Path("examples/water_treatment_flowsheet_v2.yaml").read_text(encoding="utf-8")
+    pfd_wt = Flowsheet.from_yaml(wt_text)
+    assert pfd_wt.id == "WATER_TREATMENT_V2"
+    assert len(pfd_wt.unitOperations) == 8
+    assert len(pfd_wt.streams) == 9
+
+
+def test_flowsheet_from_yaml_file_not_found():
+    with pytest.raises(FileNotFoundError):
+        Flowsheet.from_yaml(Path("non_existent_file.yaml"))
+
+    with pytest.raises(FileNotFoundError):
+        Flowsheet.from_yaml("non_existent_file.yaml")
 
 
 def test_load_water_treatment_v2_yaml_and_render(tmp_path):
