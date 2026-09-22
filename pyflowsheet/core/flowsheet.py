@@ -1,3 +1,7 @@
+from pathlib import Path
+from typing import Any, TextIO
+
+import yaml
 from pathfinding.core.grid import Grid
 
 from .stream import Stream
@@ -207,3 +211,163 @@ class Flowsheet:
             ctx.endGroup()
 
         return ctx
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Flowsheet":
+        """Builds and validates a Flowsheet instance from a Python dictionary specification."""
+        from ..schema import instantiate_unit, validate_dict
+
+        schema = validate_dict(data)
+
+        flowsheet = cls(
+            id=schema.metadata.id,
+            name=schema.metadata.name,
+            description=schema.metadata.description,
+        )
+
+        # 1. Instantiate all unit operations (equipment, stream flags, generic units)
+        for eq in schema.components.all_units():
+            unit = instantiate_unit(eq)
+            flowsheet.unit(unit)
+
+        # 2. Connect streams
+        for s in schema.streams:
+            from_unit = flowsheet.unitOperations[s.from_endpoint.unit]
+            to_unit = flowsheet.unitOperations[s.to_endpoint.unit]
+
+            from_port = from_unit[s.from_endpoint.port]
+            to_port = to_unit[s.to_endpoint.port]
+
+            flowsheet.connect(s.id, from_port, to_port)
+            stream_obj = flowsheet.streams[s.id]
+
+            if s.manual_routing:
+                stream_obj.manualRouting = [tuple(pt) for pt in s.manual_routing]
+            if s.label_offset != (0.0, 10.0):
+                stream_obj.labelOffset = tuple(s.label_offset)
+
+        return flowsheet
+
+    @classmethod
+    def from_yaml(cls, source: str | Path | TextIO) -> "Flowsheet":
+        """Loads and validates a Flowsheet instance from a YAML string, filepath, or file stream."""
+        from ..schema import validate_yaml_file, validate_yaml_string
+
+        if isinstance(source, (str, Path)):
+            path = Path(source)
+            if path.exists() and path.is_file():
+                schema = validate_yaml_file(path)
+            else:
+                schema = validate_yaml_string(str(source))
+        elif hasattr(source, "read"):
+            schema = validate_yaml_string(source.read())
+        else:
+            raise TypeError(f"Unsupported source type for from_yaml: {type(source)}")
+
+        return cls.from_dict(schema.model_dump(by_alias=True))
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serializes this Flowsheet into a dictionary conforming to FlowsheetSchema."""
+        from ..core.enums import HorizontalLabelAlignment, VerticalLabelAlignment
+        from ..unitoperations import StreamFlag
+
+        equipment_list = []
+        stream_flags_list = []
+
+        rev_h = {
+            HorizontalLabelAlignment.Center: "Center",
+            HorizontalLabelAlignment.Left: "Left",
+            HorizontalLabelAlignment.Right: "Right",
+            HorizontalLabelAlignment.LeftOuter: "LeftOuter",
+            HorizontalLabelAlignment.RightOuter: "RightOuter",
+        }
+        rev_v = {
+            VerticalLabelAlignment.Center: "Center",
+            VerticalLabelAlignment.Top: "Top",
+            VerticalLabelAlignment.Bottom: "Bottom",
+        }
+
+        for u in self.unitOperations.values():
+            u_data = {
+                "id": u.id,
+                "name": u.name,
+                "type": u.__class__.__name__,
+                "description": u.description,
+                "position": [float(u.position[0]), float(u.position[1])],
+                "size": [float(u.size[0]), float(u.size[1])],
+                "rotation": float(u.rotation),
+            }
+
+            if hasattr(u, "capLength") and u.capLength is not None:
+                u_data["cap_length"] = float(u.capLength)
+
+            if u.internals:
+                u_data["internals"] = [{"type": i.__class__.__name__} for i in u.internals]
+
+            if u.ports:
+                u_data["ports"] = [
+                    {
+                        "id": p.name,
+                        "position": [float(p.relativePosition[0]), float(p.relativePosition[1])],
+                        "normal": [float(p.normal[0]), float(p.normal[1])],
+                        "intent": p.intent,
+                    }
+                    for p in u.ports.values()
+                ]
+
+            if (
+                u.horizontalLabelAlignment != HorizontalLabelAlignment.Center
+                or u.verticalLabelAlignment != VerticalLabelAlignment.Bottom
+                or u.textOffset != (0, 20)
+            ):
+                u_data["text_anchor"] = {
+                    "horizontal": rev_h.get(u.horizontalLabelAlignment, "Center"),
+                    "vertical": rev_v.get(u.verticalLabelAlignment, "Bottom"),
+                    "offset": [float(u.textOffset[0]), float(u.textOffset[1])],
+                }
+
+            if isinstance(u, StreamFlag):
+                stream_flags_list.append(u_data)
+            else:
+                equipment_list.append(u_data)
+
+        streams_list = []
+        for s in self.streams.values():
+            s_data = {
+                "id": s.id,
+                "from": {
+                    "unit": s.fromPort.parent.id,
+                    "port": s.fromPort.name,
+                },
+                "to": {
+                    "unit": s.toPort.parent.id,
+                    "port": s.toPort.name,
+                },
+            }
+            if s.manualRouting:
+                s_data["manual_routing"] = [[float(pt[0]), float(pt[1])] for pt in s.manualRouting]
+            if s.labelOffset != (0, 10):
+                s_data["label_offset"] = [float(s.labelOffset[0]), float(s.labelOffset[1])]
+            streams_list.append(s_data)
+
+        return {
+            "schema_version": "1.0",
+            "metadata": {
+                "id": self.id,
+                "name": self.name,
+                "description": self.description,
+            },
+            "components": {
+                "equipment": equipment_list,
+                "stream_flags": stream_flags_list,
+            },
+            "streams": streams_list,
+        }
+
+    def to_yaml(self, filepath: str | Path | None = None) -> str:
+        """Serializes this Flowsheet into a YAML string, writing to filepath if provided."""
+        data = self.to_dict()
+        yaml_str = yaml.dump(data, sort_keys=False, default_flow_style=False, indent=2)
+        if filepath is not None:
+            Path(filepath).write_text(yaml_str, encoding="utf-8")
+        return yaml_str
