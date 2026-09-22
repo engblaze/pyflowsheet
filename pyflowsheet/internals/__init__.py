@@ -13,3 +13,5 @@ from .jacket import Jacket
 
 from .reciprocating import Reciprocating
 from .liquidRing import LiquidRing
+
+ReciprocatingInternals = Reciprocating

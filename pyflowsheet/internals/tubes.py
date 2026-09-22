@@ -2,7 +2,9 @@ from .baseinternal import BaseInternal
 
 
 class Tubes(BaseInternal):
-    def __init__(self, numberOfTubes=5, numberOfPasses=1):
+    def __init__(self, numberOfTubes=5, numberOfPasses=1, tubes=None):
+        if tubes is not None:
+            numberOfTubes = tubes
         self.numberOfPasses = numberOfPasses
         self.numberOfTubes = numberOfTubes
         return
