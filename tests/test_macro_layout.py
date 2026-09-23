@@ -325,6 +325,3 @@ def test_port_elevation_alignment_multiport_conflict():
     positions = solver.solve()
 
     assert positions["Mixer"][1] == 90.0
-
-
-

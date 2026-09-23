@@ -278,5 +278,3 @@ def test_occupied_corners_and_segments_init():
     )
     assert (100.0, 100.0) in router.occupied_corners
     assert len(router.occupied_segments) == 1
-
-

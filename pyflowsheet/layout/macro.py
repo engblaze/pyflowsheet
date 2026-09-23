@@ -124,9 +124,9 @@ class FlowsheetGraph:
                 source_primary = None
 
                 while True:
+                    if len(chain) > len(self.unit_ids):
+                        break
                     preds = [p for p in self.rev_adj.get(curr, []) if p[0] not in visited]
-                    if not preds:
-                        preds = [p for p in self.rev_adj.get(curr, []) if p[0] != curr]
                     if not preds:
                         break
 
@@ -498,7 +498,9 @@ class MacroLayoutSolver:
 
         forward_incoming: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
         for item in self.streams:
-            s_id, u_from, u_to = str(item[0]), str(item[1]), str(item[2])
+            s_id = str(item.get("id", "")) if isinstance(item, dict) else str(item[0])
+            u_from = str(item.get("from", "")) if isinstance(item, dict) else str(item[1])
+            u_to = str(item.get("to", "")) if isinstance(item, dict) else str(item[2])
             if (
                 s_id not in self.graph.recycle_streams
                 and u_from in self.units

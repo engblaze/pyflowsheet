@@ -156,9 +156,7 @@ class OrthogonalRouter:
                         return True
         return False
 
-    def register_route(
-        self, stream_id: str, path: Sequence[tuple[float, float]]
-    ) -> None:
+    def register_route(self, stream_id: str, path: Sequence[tuple[float, float]]) -> None:
         """Register the waypoints of a routed stream to avoid shared corners
         and collinear segment overlaps in subsequent routes.
         """
@@ -260,6 +258,8 @@ class OrthogonalRouter:
             p_start_lead == p_end_lead
             and not is_blocked(p_start_lead)
             and not self._is_corner_occupied(p_start_lead)
+            and not self._has_collinear_overlap(start, p_start_lead)
+            and not self._has_collinear_overlap(p_start_lead, end)
         ):
             return compress_orthogonal_path([start, p_start_lead, end])
 
@@ -342,9 +342,7 @@ class OrthogonalRouter:
                 turned = 1 if (dx, dy) != (ndx, ndy) and (dx != 0 or dy != 0) else 0
                 step_cost = self.grid_size + turned * self.turn_penalty
 
-                if turned and (
-                    self._is_corner_occupied(curr) or self._is_corner_occupied(nxt)
-                ):
+                if turned and (self._is_corner_occupied(curr) or self._is_corner_occupied(nxt)):
                     step_cost += self.corner_penalty
 
                 if self._has_collinear_overlap(curr, nxt):

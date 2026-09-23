@@ -286,4 +286,3 @@ def test_water_treatment_pid_autolayout_invariants():
         inst = fs.unitOperations[inst_id]
         assert hasattr(inst, "leader_line") and inst.leader_line is not None
         assert len(inst.leader_line) >= 2, f"Instrument {inst_id} missing leader line"
-

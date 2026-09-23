@@ -382,10 +382,10 @@ class Flowsheet:
                     or is_instrument(u_to)
                 )
 
-                if is_signal and abs(p_start[0] - p_end[0]) < 2.0:
-                    route = [p_start, (p_start[0], p_end[1])]
-                elif is_signal and abs(p_start[1] - p_end[1]) < 2.0:
-                    route = [p_start, (p_end[0], p_start[1])]
+                if is_signal and (
+                    abs(p_start[0] - p_end[0]) < 2.0 or abs(p_start[1] - p_end[1]) < 2.0
+                ):
+                    route = [p_start, p_end]
                 else:
                     route = router.route(
                         start=p_start,
@@ -396,6 +396,7 @@ class Flowsheet:
                     )
                 s.calculated_route = route
                 routed_streams[s.id] = route
+                router.register_route(s.id, route)
             else:
                 pts = [s.fromPort.get_position()]
                 for step in s.manualRouting:
@@ -403,6 +404,7 @@ class Flowsheet:
                 pts.append(s.toPort.get_position())
                 s.calculated_route = pts
                 routed_streams[s.id] = pts
+                router.register_route(s.id, pts)
 
         # 4. Stream Crossover Bridges
         crossover_detector = CrossoverDetector(bridge_radius=6.0)

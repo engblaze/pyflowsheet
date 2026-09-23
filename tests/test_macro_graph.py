@@ -101,3 +101,61 @@ def test_disconnected_units_and_invalid_streams():
     assert stages["ISOLATED"] == 0
     assert len(graph.recycle_streams) == 0
     assert len(graph.forward_edges) == 1
+
+
+def test_flowsheet_graph_recycle_chains():
+    units = ["FEED", "MIXER", "REACTOR", "SEPARATOR", "PUMP", "PRODUCT"]
+    unit_types = {
+        "FEED": "Feed",
+        "MIXER": "Mixer",
+        "REACTOR": "Vessel",
+        "SEPARATOR": "DistillationColumn",
+        "PUMP": "Pump",
+        "PRODUCT": "Product",
+    }
+    streams = [
+        ("S01", "FEED", "MIXER"),
+        ("S02", "MIXER", "REACTOR"),
+        ("S03", "REACTOR", "SEPARATOR"),
+        ("S04", "SEPARATOR", "PRODUCT"),
+        ("S05", "SEPARATOR", "PUMP"),
+        ("S06", "PUMP", "MIXER"),
+    ]
+    graph = FlowsheetGraph(units, streams, unit_types=unit_types)
+
+    assert "PUMP" in graph.recycle_units
+    assert "FEED" not in graph.recycle_units
+    assert "MIXER" not in graph.recycle_units
+    assert "REACTOR" not in graph.recycle_units
+    assert "SEPARATOR" not in graph.recycle_units
+    assert "PRODUCT" not in graph.recycle_units
+
+    assert "S06" in graph.recycle_streams
+    assert "S05" in graph.recycle_streams
+
+    assert len(graph.recycle_chains) == 1
+    chain = graph.recycle_chains[0]
+    assert chain["source"] == "SEPARATOR"
+    assert chain["target"] == "MIXER"
+    assert chain["units"] == ["PUMP"]
+    assert "S06" in chain["streams"]
+    assert "S05" in chain["streams"]
+
+    # Also verify direct primary-to-primary recycle
+    units_direct = ["FEED", "MIXER", "REACTOR", "SEPARATOR", "PRODUCT"]
+    streams_direct = [
+        ("S01", "FEED", "MIXER"),
+        ("S02", "MIXER", "REACTOR"),
+        ("S03", "REACTOR", "SEPARATOR"),
+        ("S04", "SEPARATOR", "PRODUCT"),
+        ("S05", "SEPARATOR", "MIXER"),
+    ]
+    graph_direct = FlowsheetGraph(units_direct, streams_direct)
+    assert len(graph_direct.recycle_units) == 0
+    assert "S05" in graph_direct.recycle_streams
+    assert len(graph_direct.recycle_chains) == 1
+    chain_direct = graph_direct.recycle_chains[0]
+    assert chain_direct["source"] == "SEPARATOR"
+    assert chain_direct["target"] == "MIXER"
+    assert chain_direct["units"] == []
+    assert chain_direct["streams"] == ["S05"]

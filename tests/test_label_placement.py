@@ -227,5 +227,3 @@ def test_flowsheet_auto_layout_parallel_stream_labels_avoid_stacking():
 
     # S01 and S02 must not have identical labelOffset (they should not stack)
     assert s1.labelOffset != s2.labelOffset
-
-

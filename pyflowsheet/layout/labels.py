@@ -83,7 +83,7 @@ class LabelPlacementSolver:
             segments.append((seg_len, i, p1, p2))
 
         # Tiebreaker: prefer segments closer to the middle if lengths are equal
-        mid_idx = (len(waypoints) - 1) / 2.0
+        mid_idx = (len(segments) - 1) / 2.0
         segments.sort(key=lambda s: (-s[0], abs(s[1] - mid_idx)))
 
         candidates = []
@@ -110,12 +110,8 @@ class LabelPlacementSolver:
                     mx + lw / 2.0,
                     my + lh + self.clearance,
                 )
-                candidates.append(
-                    (box_above, (mx, my - self.clearance), seg_rank, 0, seg_idx)
-                )
-                candidates.append(
-                    (box_below, (mx, my + lh + self.clearance), seg_rank, 1, seg_idx)
-                )
+                candidates.append((box_above, (mx, my - self.clearance), seg_rank, 0, seg_idx))
+                candidates.append((box_below, (mx, my + lh + self.clearance), seg_rank, 1, seg_idx))
             else:
                 # Candidate 1: Right
                 box_right = AABB(
@@ -170,4 +166,3 @@ class LabelPlacementSolver:
 
         best_cand = min(candidates, key=score)
         return best_cand[1], best_cand[0]
-
