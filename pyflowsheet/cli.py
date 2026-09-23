@@ -29,6 +29,15 @@ def render_command(args: argparse.Namespace) -> int:
     flowsheet.showGrid = args.show_grid
     flowsheet.showPorts = args.show_ports
 
+    if getattr(args, "drawing_frame", None) is True:
+        if flowsheet.drawing_frame is None:
+            flowsheet.enable_drawing_frame()
+        else:
+            flowsheet.drawing_frame.enabled = True
+    elif getattr(args, "drawing_frame", None) is False:
+        if flowsheet.drawing_frame is not None:
+            flowsheet.drawing_frame.enabled = False
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -116,6 +125,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--force-reposition",
         action="store_true",
         help="Force recalculation of equipment positions, overriding explicit YAML coordinates.",
+    )
+    render_parser.add_argument(
+        "--drawing-frame",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable standards-compliant drawing frame (border, title block, legend).",
     )
 
     # validate
