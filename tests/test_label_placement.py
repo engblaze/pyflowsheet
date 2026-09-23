@@ -142,3 +142,90 @@ def test_stream_label_multi_segment():
     # Should place on left of vertical middle segment
     assert placed_box.max_x <= 50.0 - 5.0
     assert not placed_box.intersects(AABB(50.0, 30.0, 100.0, 70.0))
+
+
+def test_stream_and_label_collision_avoidance():
+    solver = LabelPlacementSolver(clearance=6.0)
+    spatial_index = SpatialIndex()
+
+    # Obstacle line segment passing through y=100
+    spatial_index.insert("STREAM_PIPE", AABB(50.0, 96.0, 200.0, 104.0))
+
+    # Existing label at (100, 70)
+    spatial_index.insert("LABEL_S1", AABB(80.0, 60.0, 120.0, 80.0))
+
+    # Place label for S2 running along y=100
+    pos, box = solver.place_stream_label(
+        stream_id="S2",
+        waypoints=[(60.0, 100.0), (190.0, 100.0)],
+        label_size=(40.0, 12.0),
+        spatial_index=spatial_index,
+    )
+
+    # Box must not intersect the pipe or the existing label
+    assert not box.intersects(AABB(50.0, 96.0, 200.0, 104.0))
+    assert not box.intersects(AABB(80.0, 60.0, 120.0, 80.0))
+
+
+def test_stream_label_multi_segment_longest_chosen_when_middle_blocked():
+    solver = LabelPlacementSolver(clearance=6.0)
+    spatial_index = SpatialIndex()
+    # 3 segments:
+    # seg0: (0, 0) -> (30, 0) [len 30]
+    # seg1 (middle): (30, 0) -> (30, 40) [len 40]
+    # seg2: (30, 40) -> (230, 40) [len 200, longest]
+    waypoints = [(0.0, 0.0), (30.0, 0.0), (30.0, 40.0), (230.0, 40.0)]
+    # Middle segment (seg1) is completely blocked on both left and right
+    spatial_index.insert("BLOCK_LEFT", AABB(10.0, 0.0, 30.0, 45.0))
+    spatial_index.insert("BLOCK_RIGHT", AABB(30.0, 0.0, 50.0, 45.0))
+
+    pos, box = solver.place_stream_label(
+        stream_id="S_MULTI",
+        waypoints=waypoints,
+        label_size=(40.0, 12.0),
+        spatial_index=spatial_index,
+    )
+
+    # Label must not collide with either blocker
+    assert not box.intersects(AABB(10.0, 0.0, 30.0, 45.0))
+    assert not box.intersects(AABB(30.0, 0.0, 50.0, 45.0))
+    # It must have been placed on seg2 (y around 40)
+    assert box.min_x >= 30.0
+
+
+def test_flowsheet_auto_layout_places_equipment_labels_avoiding_obstacles():
+    from pyflowsheet import Flowsheet, VerticalLabelAlignment, Vessel
+
+    fs = Flowsheet("EQ_LABEL_TEST", "Equipment Label Test")
+    v1 = fs.unit(Vessel("V1", "Vessel 1", position=(100, 100), size=(60, 60)))
+    v1.fixed = True
+
+    # Place an obstacle directly below V1 where default bottom label would sit
+    v_obs = fs.unit(Vessel("V_OBS", "Obstacle", position=(90, 165), size=(80, 40)))
+    v_obs.fixed = True
+
+    fs.auto_layout()
+
+    # V1 should have had its label moved away from Bottom (e.g. to Top or side)
+    assert v1.verticalLabelAlignment != VerticalLabelAlignment.Bottom or v1.textOffset[1] < 0
+
+
+def test_flowsheet_auto_layout_parallel_stream_labels_avoid_stacking():
+    from pyflowsheet import Flowsheet, Vessel
+
+    fs = Flowsheet("STREAM_STACK_TEST", "Parallel Stream Stacking Test")
+    v1 = fs.unit(Vessel("V1", "V1", position=(50, 100), size=(40, 40)))
+    v2 = fs.unit(Vessel("V2", "V2", position=(300, 100), size=(40, 40)))
+    v1.fixed = True
+    v2.fixed = True
+
+    # Two parallel streams
+    s1 = fs.connect("S01", v1["Out"], v2["In"])
+    s2 = fs.connect("S02", v1["Out"], v2["In"])
+
+    fs.auto_layout()
+
+    # S01 and S02 must not have identical labelOffset (they should not stack)
+    assert s1.labelOffset != s2.labelOffset
+
+

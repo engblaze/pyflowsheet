@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from math import hypot
 
 from .spatial import AABB, SpatialIndex
 
@@ -52,7 +53,9 @@ class LabelPlacementSolver:
 
         def score(box: AABB) -> float:
             collisions = [
-                item for item in spatial_index.query_intersects(box) if item[0] != unit_id
+                item
+                for item in spatial_index.query_intersects(box)
+                if item[0] != unit_id and item[0] != f"LABEL_{unit_id}"
             ]
             return len(collisions) * 1000.0
 
@@ -70,59 +73,101 @@ class LabelPlacementSolver:
             raise ValueError("At least 2 waypoints are required to place a stream label")
 
         lw, lh = label_size
-        # Pick middle segment
-        mid_seg_idx = (len(waypoints) - 1) // 2
-        p1 = waypoints[mid_seg_idx]
-        p2 = waypoints[mid_seg_idx + 1]
 
-        mx = (p1[0] + p2[0]) / 2.0
-        my = (p1[1] + p2[1]) / 2.0
+        # Extract straight segments and sort descending by length
+        segments = []
+        for i in range(len(waypoints) - 1):
+            p1 = waypoints[i]
+            p2 = waypoints[i + 1]
+            seg_len = hypot(p2[0] - p1[0], p2[1] - p1[1])
+            segments.append((seg_len, i, p1, p2))
 
-        is_horizontal = p1[1] == p2[1]
-        if is_horizontal:
-            # Candidate 1: Above
-            box_above = AABB(
-                mx - lw / 2.0,
-                my - lh - self.clearance,
-                mx + lw / 2.0,
-                my - self.clearance,
-            )
-            # Candidate 2: Below
-            box_below = AABB(
-                mx - lw / 2.0,
-                my + self.clearance,
-                mx + lw / 2.0,
-                my + lh + self.clearance,
-            )
-            candidates = [
-                (box_above, (mx, my - self.clearance)),
-                (box_below, (mx, my + lh + self.clearance)),
-            ]
-        else:
-            # Candidate 1: Right
-            box_right = AABB(
-                mx + self.clearance,
-                my - lh / 2.0,
-                mx + lw + self.clearance,
-                my + lh / 2.0,
-            )
-            # Candidate 2: Left
-            box_left = AABB(
-                mx - lw - self.clearance,
-                my - lh / 2.0,
-                mx - self.clearance,
-                my + lh / 2.0,
-            )
-            candidates = [
-                (box_right, (mx + self.clearance + lw / 2.0, my + lh / 2.0)),
-                (box_left, (mx - self.clearance - lw / 2.0, my + lh / 2.0)),
-            ]
+        # Tiebreaker: prefer segments closer to the middle if lengths are equal
+        mid_idx = (len(waypoints) - 1) / 2.0
+        segments.sort(key=lambda s: (-s[0], abs(s[1] - mid_idx)))
 
-        def score(box: AABB) -> float:
+        candidates = []
+        for seg_rank, (seg_len, seg_idx, p1, p2) in enumerate(segments):
+            if seg_len < 1e-3:
+                continue
+
+            mx = (p1[0] + p2[0]) / 2.0
+            my = (p1[1] + p2[1]) / 2.0
+
+            is_horizontal = abs(p2[0] - p1[0]) >= abs(p2[1] - p1[1])
+            if is_horizontal:
+                # Candidate 1: Above
+                box_above = AABB(
+                    mx - lw / 2.0,
+                    my - lh - self.clearance,
+                    mx + lw / 2.0,
+                    my - self.clearance,
+                )
+                # Candidate 2: Below
+                box_below = AABB(
+                    mx - lw / 2.0,
+                    my + self.clearance,
+                    mx + lw / 2.0,
+                    my + lh + self.clearance,
+                )
+                candidates.append(
+                    (box_above, (mx, my - self.clearance), seg_rank, 0, seg_idx)
+                )
+                candidates.append(
+                    (box_below, (mx, my + lh + self.clearance), seg_rank, 1, seg_idx)
+                )
+            else:
+                # Candidate 1: Right
+                box_right = AABB(
+                    mx + self.clearance,
+                    my - lh / 2.0,
+                    mx + lw + self.clearance,
+                    my + lh / 2.0,
+                )
+                # Candidate 2: Left
+                box_left = AABB(
+                    mx - lw - self.clearance,
+                    my - lh / 2.0,
+                    mx - self.clearance,
+                    my + lh / 2.0,
+                )
+                candidates.append(
+                    (
+                        box_right,
+                        (mx + self.clearance + lw / 2.0, my + lh / 2.0),
+                        seg_rank,
+                        0,
+                        seg_idx,
+                    )
+                )
+                candidates.append(
+                    (
+                        box_left,
+                        (mx - self.clearance - lw / 2.0, my + lh / 2.0),
+                        seg_rank,
+                        1,
+                        seg_idx,
+                    )
+                )
+
+        if not candidates:
+            p = waypoints[0]
+            box = AABB(p[0], p[1], p[0] + lw, p[1] + lh)
+            return p, box
+
+        def score(
+            candidate: tuple[AABB, tuple[float, float], int, int, int],
+        ) -> tuple[int, int, int]:
+            box, _, seg_rank, side_rank, seg_idx = candidate
             collisions = [
-                item for item in spatial_index.query_intersects(box) if item[0] != stream_id
+                item
+                for item in spatial_index.query_intersects(box)
+                if item[0] != stream_id
+                and item[0] != f"LABEL_{stream_id}"
+                and item[0] != f"PIPE_{stream_id}_{seg_idx}"
             ]
-            return len(collisions) * 1000.0
+            return (len(collisions), seg_rank, side_rank)
 
-        best_box, best_pos = min(candidates, key=lambda c: score(c[0]))
-        return best_pos, best_box
+        best_cand = min(candidates, key=score)
+        return best_cand[1], best_cand[0]
+

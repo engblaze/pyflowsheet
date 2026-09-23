@@ -436,13 +436,75 @@ class Flowsheet:
                         )
                     s.knockout_masks.append(placement.knockout_box)
 
-        # 6. Stream Label Positioning
-        label_solver = LabelPlacementSolver()
+        from ..core.enums import HorizontalLabelAlignment, VerticalLabelAlignment
+
+        # 6. Unified Spatial Indexing & Collision-Free Label Placement
+        # 6a. Insert routed stream pipe segments as AABBs into spatial_index (with 4px padding)
         for s in self.streams.values():
-            if len(s.calculated_route) >= 2 and s.labelOffset == (0, 10):
+            if s.calculated_route and len(s.calculated_route) >= 2:
+                for idx in range(len(s.calculated_route) - 1):
+                    p1 = s.calculated_route[idx]
+                    p2 = s.calculated_route[idx + 1]
+                    pipe_box = AABB(
+                        min(p1[0], p2[0]) - 4.0,
+                        min(p1[1], p2[1]) - 4.0,
+                        max(p1[0], p2[0]) + 4.0,
+                        max(p1[1], p2[1]) + 4.0,
+                    )
+                    spatial_index.insert(f"PIPE_{s.id}_{idx}", pipe_box, data=s)
+
+        label_solver = LabelPlacementSolver(clearance=6.0)
+
+        # 6b. Place equipment labels and insert their AABBs into spatial_index
+        for u in macro_units:
+            if not getattr(u, "showTitle", True):
+                continue
+            unit_box = AABB(
+                u.position[0],
+                u.position[1],
+                u.position[0] + u.size[0],
+                u.position[1] + u.size[1],
+            )
+            lw = max(len(u.id) * 8.0, 30.0)
+            lh = float(getattr(u, "fontSize", 12.0))
+            pos, label_box = label_solver.place_equipment_label(
+                unit_id=u.id,
+                unit_box=unit_box,
+                label_size=(lw, lh),
+                spatial_index=spatial_index,
+            )
+            if label_box.min_y >= unit_box.max_y:
+                u.setTextAnchor(
+                    HorizontalLabelAlignment.Center,
+                    VerticalLabelAlignment.Bottom,
+                    (0, 20),
+                )
+            elif label_box.max_y <= unit_box.min_y:
+                u.setTextAnchor(
+                    HorizontalLabelAlignment.Center,
+                    VerticalLabelAlignment.Top,
+                    (0, -10),
+                )
+            elif label_box.min_x >= unit_box.max_x:
+                u.setTextAnchor(
+                    HorizontalLabelAlignment.RightOuter,
+                    VerticalLabelAlignment.Center,
+                    (10, 0),
+                )
+            else:
+                u.setTextAnchor(
+                    HorizontalLabelAlignment.LeftOuter,
+                    VerticalLabelAlignment.Center,
+                    (-10, 0),
+                )
+            spatial_index.insert(f"LABEL_{u.id}", label_box, data=u)
+
+        # 6c. Place stream labels and immediately insert each chosen box into spatial_index
+        for s in self.streams.values():
+            if len(s.calculated_route) >= 2 and (s.labelOffset == (0, 10) or force_reposition):
                 try:
                     lw = max(len(s.id) * 8.0, 30.0)
-                    pos, _ = label_solver.place_stream_label(
+                    pos, chosen_box = label_solver.place_stream_label(
                         stream_id=s.id,
                         waypoints=s.calculated_route,
                         label_size=(lw, 12.0),
@@ -450,8 +512,16 @@ class Flowsheet:
                     )
                     start_pt = s.calculated_route[0]
                     s.labelOffset = (pos[0] - start_pt[0], pos[1] - start_pt[1])
+                    spatial_index.insert(f"LABEL_{s.id}", chosen_box, data=s)
                 except Exception:
                     pass
+            elif len(s.calculated_route) >= 2 and s.labelOffset != (0, 10):
+                start_pt = s.calculated_route[0]
+                pos = (start_pt[0] + s.labelOffset[0], start_pt[1] + s.labelOffset[1])
+                lw = max(len(s.id) * 8.0, 30.0)
+                lh = 12.0
+                box = AABB(pos[0] - lw / 2.0, pos[1] - lh, pos[0] + lw / 2.0, pos[1])
+                spatial_index.insert(f"LABEL_{s.id}", box, data=s)
 
     @classmethod
     def _from_schema(cls, schema: Any) -> "Flowsheet":
