@@ -378,10 +378,10 @@ def test_water_treatment_pid_routes_free_of_redundant_jogs_and_loops():
 
     # S05_2: clean 2-turn Z-step, no jog down and no loop crossing over itself
     assert fs.streams["S05_2"].calculated_route == [
-        (746.3333333333334, 328.0),
-        (670.0, 328.0),
-        (670.0, 325.0),
-        (591.6666666666667, 325.0),
+        (746.3333333333334, 336.0),
+        (670.0, 336.0),
+        (670.0, 333.0),
+        (591.6666666666667, 333.0),
     ]
 
     # S07_1: clean 3-turn route, no self-crossing loop

@@ -106,3 +106,66 @@ def test_package_exports():
     assert SRV is SafetyReliefValve
     assert ST is SteamTrap
     assert S is Strainer
+
+
+def test_grab_sampling_tee_orientation():
+    from pyflowsheet.core import Flowsheet
+
+    # Default orientation is down
+    tee_down = GrabSamplingTee("SMP-DN", position=(10, 10), size=(16, 48))
+    assert tee_down.isFlippedVertical is False
+    assert tee_down.ports["Sample"].relativePosition == (0.5, 1.0)
+    assert tee_down.ports["Sample"].normal == (0, 1)
+
+    # Orientation up via constructor argument
+    tee_up = GrabSamplingTee("SMP-UP", position=(10, 10), size=(16, 48), orientation="up")
+    assert tee_up.isFlippedVertical is True
+    assert tee_up.ports["Sample"].relativePosition == (0.5, 0.0)
+    assert tee_up.ports["Sample"].normal == (0, -1)
+    assert tee_up.ports["In"].relativePosition == (0.0, 0.5)
+    assert tee_up.ports["Out"].relativePosition == (1.0, 0.5)
+
+    # Orientation up via flipVertical method
+    tee_flipped = GrabSamplingTee("SMP-FLIP", position=(10, 10), size=(16, 48))
+    tee_flipped.flipVertical()
+    assert tee_flipped.isFlippedVertical is True
+    assert tee_flipped.ports["Sample"].relativePosition == (0.5, 0.0)
+    assert tee_flipped.ports["Sample"].normal == (0, -1)
+
+    # Flowsheet YAML with orientation: "up"
+    yaml_orientation = """
+flowsheet:
+  id: test_smp_orient
+  name: Test Sampling Orientation
+equipment:
+  - id: V-SMP-UP
+    type: GrabSamplingTee
+    position: [100, 100]
+    size: [14, 48]
+    orientation: "up"
+streams: []
+"""
+    fs_orient = Flowsheet.from_yaml(yaml_orientation)
+    unit_orient = fs_orient.unitOperations["V-SMP-UP"]
+    assert unit_orient.isFlippedVertical is True
+    assert unit_orient.ports["Sample"].relativePosition == (0.5, 0.0)
+    assert unit_orient.ports["Sample"].normal == (0, -1)
+
+    # Flowsheet YAML with standard flip_vertical: true
+    yaml_flip = """
+flowsheet:
+  id: test_smp_flip
+  name: Test Sampling Flip
+equipment:
+  - id: V-SMP-FLIP
+    type: GrabSamplingTee
+    position: [100, 100]
+    size: [14, 48]
+    flip_vertical: true
+streams: []
+"""
+    fs_flip = Flowsheet.from_yaml(yaml_flip)
+    unit_flip = fs_flip.unitOperations["V-SMP-FLIP"]
+    assert unit_flip.isFlippedVertical is True
+    assert unit_flip.ports["Sample"].relativePosition == (0.5, 0.0)
+    assert unit_flip.ports["Sample"].normal == (0, -1)

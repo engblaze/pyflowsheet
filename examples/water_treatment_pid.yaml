@@ -107,6 +107,19 @@ equipment:
     description: "Crossflow nanofiltration membrane module"
     position: [640, 320]
     size: [60, 40]
+    ports:
+      - id: "Feed"
+        position: [0.0, 0.5]
+        normal: [-1, 0]
+        intent: "in"
+      - id: "Permeate"
+        position: [1, 0.2]
+        normal: [0, -1]
+        intent: "out"
+      - id: "Retentate"
+        position: [0.5, 1.0]
+        normal: [0, 1]
+        intent: "out"
 
   # ----------------------------------------------------------------------------
   # 2. Process Boundaries / Stream Flags
@@ -207,20 +220,20 @@ equipment:
   - id: V-SMP-01
     name: "Influent Sample Point"
     type: "GrabSamplingTee"
-    position: [195, 248]
-    size: [14, 14]
+    position: [195, 231]
+    # size: [14, 48]
 
   - id: V-SMP-02
     name: "Slurry Sample Point"
     type: "GrabSamplingTee"
-    position: [390, 258]
-    size: [14, 14]
+    position: [390, 241]
+    # size: [14, 48]
 
   - id: V-SMP-03
     name: "Sludge Sample Point"
     type: "GrabSamplingTee"
-    position: [605, 137]
-    size: [14, 14]
+    position: [605, 120]
+    # size: [14, 48]
 
   - id: PSV-101
     name: "Membrane Relief Valve"
@@ -237,8 +250,8 @@ equipment:
   - id: V-SMP-06
     name: "Permeate Sample Point"
     type: "GrabSamplingTee"
-    position: [775, 325]
-    size: [14, 14]
+    position: [775, 308]
+    # size: [14, 48]
 
   - id: PCV-101
     name: "Retentate Control Valve"

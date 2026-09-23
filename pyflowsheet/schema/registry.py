@@ -238,6 +238,10 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
         )
         if has_internals_param:
             kwargs["internals"] = internals
+        if eq.model_extra:
+            for k, v in eq.model_extra.items():
+                if k in init_params and k not in kwargs:
+                    kwargs[k] = v
 
     unit = cls(**kwargs)
 
@@ -258,9 +262,9 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
             )
 
     # Flips & Rotation
-    if eq.flip_horizontal:
+    if eq.flip_horizontal and not getattr(unit, "isFlippedHorizontal", False):
         unit.flipHorizontal()
-    if eq.flip_vertical:
+    if eq.flip_vertical and not getattr(unit, "isFlippedVertical", False):
         unit.flipVertical()
     if eq.rotation != 0:
         unit.rotate(eq.rotation)

@@ -100,30 +100,66 @@ class GrabSamplingTee(UnitOperation):
         id: str,
         name: str = "",
         position: tuple[float, float] = (0.0, 0.0),
-        size: tuple[float, float] = (25.0, 25.0),
+        size: tuple[float, float] = (16.0, 48.0),
         description: str = "",
+        tee_length: float | None = None,
+        orientation: str = "down",
     ):
+        self.tee_length = tee_length
+        self.orientation = orientation
         super().__init__(id, name or id, position=position, size=size, description=description)
         self.updatePorts()
+        if orientation.lower() in ("up", "top", "north"):
+            self.flipVertical()
 
     def updatePorts(self) -> None:
+        sample_rel_y = (
+            (self.size[1] * 0.5 + self.tee_length) / self.size[1]
+            if (getattr(self, "tee_length", None) is not None and self.size[1] > 0)
+            else 1.0
+        )
         self.ports = {
             "In": Port("In", self, (0.0, 0.5), (-1, 0)),
             "Out": Port("Out", self, (1.0, 0.5), (1, 0), intent="out"),
-            "Sample": Port("Sample", self, (0.5, 1.0), (0, 1), intent="out"),
+            "Sample": Port("Sample", self, (0.5, sample_rel_y), (0, 1), intent="out"),
         }
+
+    def getTextAnchor(self):
+        anchor, align = super().getTextAnchor()
+        if not getattr(self, "isFlippedVertical", False):
+            # Ensure label sits below the bottom of the sampling branch
+            branch_len = (
+                self.tee_length
+                if getattr(self, "tee_length", None) is not None
+                else (self.size[1] * 0.5)
+            )
+            tip_y = self.position[1] + self.size[1] * 0.5 + branch_len
+            min_label_y = tip_y + 10.0
+            if anchor[1] < min_label_y:
+                anchor = (anchor[0], min_label_y)
+        return anchor, align
 
     def draw(self, ctx) -> None:
         x, y = self.position
         w, h = self.size
         cx, cy = x + w / 2.0, y + h * 0.5
-        # Main pipe line
+        branch_len = (
+            self.tee_length
+            if getattr(self, "tee_length", None) is not None
+            else (h * 0.5)
+        )
+        tip_y = cy + branch_len
+
+        # Main pipe line across top run
         ctx.line((x, cy), (x + w, cy), self.lineColor, self.lineSize)
+
         # Sampling branch down
-        ctx.line((cx, cy), (cx, y + h), self.lineColor, self.lineSize)
-        # Small sample valve symbol on branch
-        vw, vh = w * 0.35, h * 0.25
-        vy = y + h * 0.65
+        ctx.line((cx, cy), (cx, tip_y), self.lineColor, self.lineSize)
+
+        # Small sample valve symbol on branch (centered along branch with clear separation from main line)
+        vw = max(8.0, min(12.0, w * 0.7))
+        vh = min(8.0, max(5.0, branch_len * 0.35))
+        vy = cy + (branch_len - vh) / 2.0
         ctx.path(
             [
                 (cx - vw / 2.0, vy),
