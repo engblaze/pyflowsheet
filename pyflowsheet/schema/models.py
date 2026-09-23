@@ -33,10 +33,14 @@ class MetadataSchema(BaseModel):
     sheet_size: str | None = None
     scale: str | None = None
     sheet: str | None = None
+    cage_code: str | None = None
     organization: str | None = None
     project: str | None = None
+    contract_no: str | None = None
     status: str | None = None
     units: str | None = None
+    projection: str = "THIRD ANGLE"
+    code_standard: str = "ANSI/ASME Y14.1 / ISA-5.1"
     drawn_by: str | None = None
     drawn_date: str | None = None
     checked_by: str | None = None
@@ -47,6 +51,19 @@ class MetadataSchema(BaseModel):
     qa_date: str | None = None
     notes: list[str] = Field(default_factory=list)
     revisions: list[MetadataRevisionSchema] = Field(default_factory=list)
+
+
+class DrawingFrameSettingsSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    enabled: bool = True
+    sheet_size: str = "D"
+    show_border: bool = True
+    show_title_block: bool = True
+    show_revision_block: bool = True
+    show_legend: bool = True
+    show_notes: bool = True
+    custom_legend_entries: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PortSchema(BaseModel):
