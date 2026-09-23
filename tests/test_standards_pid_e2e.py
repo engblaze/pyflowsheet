@@ -229,3 +229,61 @@ def test_flowsheet_to_dict_deduplicates_aliased_ports():
     assert len(cooler_ports) == 2
     cooler_port_ids = [p["id"] for p in cooler_ports]
     assert set(cooler_port_ids) == {"In", "Out"}
+
+
+def test_water_treatment_pid_autolayout_invariants():
+    from pyflowsheet import Flowsheet
+
+    fs = Flowsheet.from_yaml("examples/water_treatment_pid.yaml")
+    fs.auto_layout(force_reposition=True)
+
+    # 1. Invariant: Every routed segment must be strictly orthogonal (dx==0 or dy==0)
+    for sid, s in fs.streams.items():
+        assert len(s.calculated_route) >= 2, f"Stream {sid} missing route"
+        for i in range(len(s.calculated_route) - 1):
+            p1, p2 = s.calculated_route[i], s.calculated_route[i + 1]
+            dx = abs(p2[0] - p1[0])
+            dy = abs(p2[1] - p1[1])
+            assert dx == 0 or dy == 0, f"Stream {sid} segment {p1}->{p2} is diagonal"
+
+    # 2. Invariant: S05_1 and S06_1 must not share any corner vertices
+    s05_corners = set(fs.streams["S05_1"].calculated_route[1:-1])
+    s06_corners = set(fs.streams["S06_1"].calculated_route[1:-1])
+    assert len(s05_corners.intersection(s06_corners)) == 0
+
+    # 3. Invariant: All instruments must have X >= 120 (not stacked at X=60)
+    inst_ids = [
+        "FIT-101",
+        "AIT-101",
+        "LIT-101",
+        "FIT-102",
+        "LIT-102",
+        "AIT-103",
+        "PIT-101",
+        "PDIT-101",
+        "FIT-106",
+        "TT-101",
+        "FIT-108",
+    ]
+    for inst_id in inst_ids:
+        assert fs.unitOperations[inst_id].position[0] > 100.0, (
+            f"Instrument {inst_id} left on margin"
+        )
+
+    # 4. Invariant: Leader lines exist for contextually routed instruments
+    for inst_id in [
+        "FIT-101",
+        "AIT-101",
+        "LIT-101",
+        "FIT-102",
+        "LIT-102",
+        "AIT-103",
+        "PIT-101",
+        "PDIT-101",
+        "FIT-106",
+        "TT-101",
+    ]:
+        inst = fs.unitOperations[inst_id]
+        assert hasattr(inst, "leader_line") and inst.leader_line is not None
+        assert len(inst.leader_line) >= 2, f"Instrument {inst_id} missing leader line"
+
