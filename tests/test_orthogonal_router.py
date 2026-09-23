@@ -153,3 +153,58 @@ def test_matching_lead_points_with_obstacle():
     assert len(path) >= 2
     assert path[0] == start
     assert path[-1] == end
+
+
+def test_off_grid_ports_strictly_orthogonal():
+    router = OrthogonalRouter(grid_size=10.0, turn_penalty=50.0)
+    # Start and end have fractional/off-grid coordinates with non-aligned Y
+    path = router.route(
+        start=(125.0, 249.0),
+        start_normal=(1.0, 0.0),
+        end=(155.0, 246.0),
+        end_normal=(-1.0, 0.0),
+        obstacles=[],
+    )
+    assert len(path) >= 2
+    assert path[0] == (125.0, 249.0)
+    assert path[-1] == (155.0, 246.0)
+
+    for i in range(len(path) - 1):
+        p1, p2 = path[i], path[i + 1]
+        dx = abs(p2[0] - p1[0])
+        dy = abs(p2[1] - p1[1])
+        assert dx == 0 or dy == 0, f"Segment {p1} -> {p2} is diagonal (dx={dx}, dy={dy})"
+
+
+def test_off_grid_vertical_ports_strictly_orthogonal():
+    router = OrthogonalRouter(grid_size=10.0, turn_penalty=50.0)
+    path = router.route(
+        start=(249.0, 125.0),
+        start_normal=(0.0, 1.0),
+        end=(246.0, 155.0),
+        end_normal=(0.0, -1.0),
+        obstacles=[],
+    )
+    assert len(path) >= 2
+    assert path[0] == (249.0, 125.0)
+    assert path[-1] == (246.0, 155.0)
+
+    for i in range(len(path) - 1):
+        p1, p2 = path[i], path[i + 1]
+        dx = abs(p2[0] - p1[0])
+        dy = abs(p2[1] - p1[1])
+        assert dx == 0 or dy == 0, f"Segment {p1} -> {p2} is diagonal (dx={dx}, dy={dy})"
+
+
+def test_compress_orthogonal_path_breaks_diagonal():
+    points = [(0.0, 0.0), (10.0, 10.0), (20.0, 10.0)]
+    compressed = compress_orthogonal_path(points)
+    # Diagonal (0, 0) -> (10, 10) must be broken into (0, 0) -> (10, 0) -> (10, 10)
+    assert compressed == [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (20.0, 10.0)]
+    for i in range(len(compressed) - 1):
+        p1, p2 = compressed[i], compressed[i + 1]
+        dx = abs(p2[0] - p1[0])
+        dy = abs(p2[1] - p1[1])
+        assert dx == 0 or dy == 0
+
+
