@@ -8,14 +8,20 @@ from .spatial import AABB
 
 
 def compress_orthogonal_path(points: Sequence[tuple[float, float]]) -> list[tuple[float, float]]:
-    """Removes redundant collinear points from an orthogonal path and ensures strict orthogonality."""
+    """Removes redundant collinear points from an orthogonal path and ensures
+    strict orthogonality.
+    """
     if len(points) <= 1:
         return list(points)
+
+    eps = 1e-6
 
     def _dedup(pts: Sequence[tuple[float, float]]) -> list[tuple[float, float]]:
         deduped: list[tuple[float, float]] = []
         for p in pts:
-            if not deduped or p != deduped[-1]:
+            if not deduped or (
+                abs(p[0] - deduped[-1][0]) > eps or abs(p[1] - deduped[-1][1]) > eps
+            ):
                 deduped.append(p)
         return deduped
 
@@ -31,7 +37,7 @@ def compress_orthogonal_path(points: Sequence[tuple[float, float]]) -> list[tupl
             dx1, dy1 = curr[0] - prev[0], curr[1] - prev[1]
             dx2, dy2 = nxt[0] - curr[0], nxt[1] - curr[1]
 
-            if (dx1 == 0 and dx2 == 0) or (dy1 == 0 and dy2 == 0):
+            if (abs(dx1) <= eps and abs(dx2) <= eps) or (abs(dy1) <= eps and abs(dy2) <= eps):
                 continue  # Collinear point skipped
             compressed.append(curr)
 
@@ -53,7 +59,7 @@ def compress_orthogonal_path(points: Sequence[tuple[float, float]]) -> list[tupl
         p2 = pts[i + 1]
         dx = abs(p2[0] - p1[0])
         dy = abs(p2[1] - p1[1])
-        if dx != 0 and dy != 0:
+        if dx > eps and dy > eps:
             # Diagonal segment: break into horizontal then vertical step
             orthogonalized.append((p2[0], p1[1]))
         orthogonalized.append(p2)
@@ -99,7 +105,8 @@ class OrthogonalRouter:
 
         lead_len = self.grid_size * 2
 
-        # 1. Calculate lead step from start along start_normal without changing transverse coordinate
+        # 1. Calculate lead step from start along start_normal without changing
+        # transverse coordinate
         if abs(start_normal[0]) >= abs(start_normal[1]) and start_normal[0] != 0:
             p_start_lead = (start[0] + start_normal[0] * lead_len, start[1])
             start_grid = (self._snap(p_start_lead[0]), self._snap(start[1]))
