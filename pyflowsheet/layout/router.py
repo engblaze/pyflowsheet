@@ -79,13 +79,96 @@ class OrthogonalRouter:
         grid_size: float = 10.0,
         turn_penalty: float = 60.0,
         obstacle_margin: float = 10.0,
+        occupied_corners: set[tuple[float, float]] | None = None,
+        occupied_segments: list[tuple[tuple[float, float], tuple[float, float]]] | None = None,
+        corner_penalty: float = 500.0,
+        collinear_penalty: float = 50.0,
     ):
         self.grid_size = max(grid_size, 1.0)
         self.turn_penalty = turn_penalty
         self.obstacle_margin = obstacle_margin
+        self.occupied_corners: set[tuple[float, float]] = (
+            set(occupied_corners) if occupied_corners is not None else set()
+        )
+        self.occupied_segments: list[tuple[tuple[float, float], tuple[float, float]]] = []
+        self._h_segments: list[tuple[float, float, float]] = []
+        self._v_segments: list[tuple[float, float, float]] = []
+        self.corner_penalty = corner_penalty
+        self.collinear_penalty = collinear_penalty
+
+        if occupied_segments:
+            for seg in occupied_segments:
+                self._add_segment(seg[0], seg[1])
 
     def _snap(self, val: float) -> float:
         return round(val / self.grid_size) * self.grid_size
+
+    def _add_segment(
+        self, p1: tuple[float, float], p2: tuple[float, float], eps: float = 1e-4
+    ) -> None:
+        self.occupied_segments.append((p1, p2))
+        dx = abs(p2[0] - p1[0])
+        dy = abs(p2[1] - p1[1])
+        if dy <= eps and dx > eps:
+            self._h_segments.append((p1[1], min(p1[0], p2[0]), max(p1[0], p2[0])))
+        elif dx <= eps and dy > eps:
+            self._v_segments.append((p1[0], min(p1[1], p2[1]), max(p1[1], p2[1])))
+
+    def _rebuild_segment_index(self, eps: float = 1e-4) -> None:
+        self._h_segments.clear()
+        self._v_segments.clear()
+        for p1, p2 in self.occupied_segments:
+            dx = abs(p2[0] - p1[0])
+            dy = abs(p2[1] - p1[1])
+            if dy <= eps and dx > eps:
+                self._h_segments.append((p1[1], min(p1[0], p2[0]), max(p1[0], p2[0])))
+            elif dx <= eps and dy > eps:
+                self._v_segments.append((p1[0], min(p1[1], p2[1]), max(p1[1], p2[1])))
+
+    def _is_corner_occupied(self, pt: tuple[float, float], eps: float = 1e-4) -> bool:
+        if pt in self.occupied_corners:
+            return True
+        for cx, cy in self.occupied_corners:
+            if abs(cx - pt[0]) <= eps and abs(cy - pt[1]) <= eps:
+                return True
+        return False
+
+    def _has_collinear_overlap(
+        self, p1: tuple[float, float], p2: tuple[float, float], eps: float = 1e-4
+    ) -> bool:
+        dx = abs(p2[0] - p1[0])
+        dy = abs(p2[1] - p1[1])
+        if dy <= eps and dx > eps:
+            y = p1[1]
+            min_x = min(p1[0], p2[0])
+            max_x = max(p1[0], p2[0])
+            for seg_y, seg_min_x, seg_max_x in self._h_segments:
+                if abs(seg_y - y) <= eps:
+                    if min(max_x, seg_max_x) - max(min_x, seg_min_x) > eps:
+                        return True
+        elif dx <= eps and dy > eps:
+            x = p1[0]
+            min_y = min(p1[1], p2[1])
+            max_y = max(p1[1], p2[1])
+            for seg_x, seg_min_y, seg_max_y in self._v_segments:
+                if abs(seg_x - x) <= eps:
+                    if min(max_y, seg_max_y) - max(min_y, seg_min_y) > eps:
+                        return True
+        return False
+
+    def register_route(
+        self, stream_id: str, path: Sequence[tuple[float, float]]
+    ) -> None:
+        """Register the waypoints of a routed stream to avoid shared corners
+        and collinear segment overlaps in subsequent routes.
+        """
+        compressed = compress_orthogonal_path(path)
+        if len(compressed) >= 3:
+            for pt in compressed[1:-1]:
+                self.occupied_corners.add(pt)
+
+        for i in range(len(compressed) - 1):
+            self._add_segment(compressed[i], compressed[i + 1])
 
     def route(
         self,
@@ -173,7 +256,11 @@ class OrthogonalRouter:
                 end_lead_path.append(pt)
 
         # Fast path: If lead points match and no obstacle, direct connect
-        if p_start_lead == p_end_lead and not is_blocked(p_start_lead):
+        if (
+            p_start_lead == p_end_lead
+            and not is_blocked(p_start_lead)
+            and not self._is_corner_occupied(p_start_lead)
+        ):
             return compress_orthogonal_path([start, p_start_lead, end])
 
         if start_grid == end_grid:
@@ -218,6 +305,9 @@ class OrthogonalRouter:
         min_bound_y = min(all_ys) - self.grid_size * 8
         max_bound_y = max(all_ys) + self.grid_size * 8
 
+        if len(self.occupied_segments) != len(self._h_segments) + len(self._v_segments):
+            self._rebuild_segment_index()
+
         max_iterations = 3000
         iterations = 0
 
@@ -251,6 +341,15 @@ class OrthogonalRouter:
 
                 turned = 1 if (dx, dy) != (ndx, ndy) and (dx != 0 or dy != 0) else 0
                 step_cost = self.grid_size + turned * self.turn_penalty
+
+                if turned and (
+                    self._is_corner_occupied(curr) or self._is_corner_occupied(nxt)
+                ):
+                    step_cost += self.corner_penalty
+
+                if self._has_collinear_overlap(curr, nxt):
+                    step_cost += self.collinear_penalty
+
                 new_g = g + step_cost
                 new_h = abs(nxt[0] - end_grid[0]) + abs(nxt[1] - end_grid[1])
                 new_f = new_g + new_h

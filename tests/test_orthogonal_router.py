@@ -208,3 +208,75 @@ def test_compress_orthogonal_path_breaks_diagonal():
         assert dx == 0 or dy == 0
 
 
+def test_avoid_shared_corner_vertices():
+    router = OrthogonalRouter(grid_size=10.0, turn_penalty=50.0)
+    # Stream 1 turns at (100.0, 100.0)
+    path1 = router.route(
+        start=(50.0, 100.0),
+        start_normal=(1.0, 0.0),
+        end=(100.0, 150.0),
+        end_normal=(0.0, 1.0),
+        obstacles=[],
+    )
+    router.register_route("S1", path1)
+
+    # Stream 2 traverses the same junction
+    path2 = router.route(
+        start=(40.0, 100.0),
+        start_normal=(1.0, 0.0),
+        end=(110.0, 150.0),
+        end_normal=(0.0, 1.0),
+        obstacles=[],
+    )
+
+    # Corners of S1 and S2 must not share vertices
+    corners1 = set(path1[1:-1])
+    corners2 = set(path2[1:-1])
+    assert len(corners1.intersection(corners2)) == 0, (
+        f"Shared corners detected: {corners1.intersection(corners2)}"
+    )
+
+
+def test_collinear_segment_overlap_avoidance():
+    router = OrthogonalRouter(grid_size=10.0, turn_penalty=50.0)
+    # Stream 1 occupies the line segment from (70, 100) to (130, 100)
+    path1 = router.route(
+        start=(70.0, 100.0),
+        start_normal=(1.0, 0.0),
+        end=(130.0, 100.0),
+        end_normal=(-1.0, 0.0),
+        obstacles=[],
+    )
+    router.register_route("S1", path1)
+
+    # Stream 2 starts at (40, 100) and wants to reach (160, 100)
+    # Because (70, 100) -> (130, 100) is occupied, Stream 2 should detour to a parallel channel
+    path2 = router.route(
+        start=(40.0, 100.0),
+        start_normal=(1.0, 0.0),
+        end=(160.0, 100.0),
+        end_normal=(-1.0, 0.0),
+        obstacles=[],
+    )
+
+    # Ensure Stream 2 does not overlap collinear with Stream 1 along y=100
+    for i in range(len(path2) - 1):
+        p1, p2 = path2[i], path2[i + 1]
+        if abs(p1[1] - 100.0) < 1e-4 and abs(p2[1] - 100.0) < 1e-4:
+            overlap = min(max(p1[0], p2[0]), 130.0) - max(min(p1[0], p2[0]), 70.0)
+            assert overlap <= 1e-4, f"Collinear overlap detected on segment {p1} -> {p2}"
+
+
+def test_occupied_corners_and_segments_init():
+    occupied_corners = {(100.0, 100.0)}
+    occupied_segments = [((50.0, 100.0), (100.0, 100.0))]
+    router = OrthogonalRouter(
+        grid_size=10.0,
+        turn_penalty=50.0,
+        occupied_corners=occupied_corners,
+        occupied_segments=occupied_segments,
+    )
+    assert (100.0, 100.0) in router.occupied_corners
+    assert len(router.occupied_segments) == 1
+
+
