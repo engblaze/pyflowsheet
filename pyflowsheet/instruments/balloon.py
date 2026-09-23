@@ -34,6 +34,7 @@ class Instrument(UnitOperation):
         self.fontSize = 8
         self.lineSize = 1.5
         self.showTitle = False  # The tag itself is drawn inside the balloon
+        self.leader_line: list[tuple[float, float]] | None = None
         self.updatePorts()
 
     def updatePorts(self) -> None:
@@ -99,6 +100,8 @@ class Instrument(UnitOperation):
             ctx.line((x, cy + gap), (x + w, cy + gap), self.lineColor, self.lineSize)
 
     def draw(self, ctx) -> None:
+        if getattr(self, "leader_line", None) and len(self.leader_line) >= 2:
+            ctx.path(self.leader_line, None, self.lineColor, self.lineSize)
         self._draw_outer_shape(ctx)
         self._draw_location_lines(ctx)
         super().draw(ctx)

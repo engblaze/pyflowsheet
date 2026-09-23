@@ -1,3 +1,4 @@
+from ..valves import ControlValve
 from .aircooler import AirCooler
 from .blackbox import BlackBox
 from .blower import Blower
@@ -33,6 +34,7 @@ __all__ = [
     "Blower",
     "Compressor",
     "Condenser",
+    "ControlValve",
     "Distillation",
     "DistillationColumn",
     "FiredHeater",

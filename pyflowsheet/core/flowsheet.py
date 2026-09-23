@@ -236,14 +236,20 @@ class Flowsheet:
 
         from ..layout.crossover import CrossoverDetector
         from ..layout.inline import InlineSequencer
+        from ..layout.instruments import InstrumentTapRouter, is_instrument
         from ..layout.labels import LabelPlacementSolver
         from ..layout.macro import MacroLayoutSolver
         from ..layout.router import OrthogonalRouter
         from ..layout.spatial import AABB, SpatialIndex
 
+        # Separate instruments from macro process equipment
+        instruments = [u for u in self.unitOperations.values() if is_instrument(u)]
+        macro_units = [u for u in self.unitOperations.values() if not is_instrument(u)]
+        macro_unit_ids = {u.id for u in macro_units}
+
         # 1. Tier 1: Macro Layout
         units_spec = []
-        for uid, u in self.unitOperations.items():
+        for u in macro_units:
             pos = u.position
             if force_reposition and not (
                 getattr(u, "fixed", False) or getattr(u, "is_fixed", False)
@@ -258,7 +264,7 @@ class Flowsheet:
                         "intent": getattr(p, "intent", None),
                     }
             spec = {
-                "id": uid,
+                "id": u.id,
                 "size": u.size,
                 "position": pos,
                 "type": getattr(u, "type", u.__class__.__name__),
@@ -276,34 +282,87 @@ class Flowsheet:
             to_id = u_to.id if u_to is not None else None
             from_port = getattr(s.fromPort, "name", None)
             to_port = getattr(s.toPort, "name", None)
-            if from_id and to_id:
+            if from_id in macro_unit_ids and to_id in macro_unit_ids:
                 streams_spec.append((s.id, from_id, to_id, from_port, to_port))
 
-        macro_solver = MacroLayoutSolver(
-            units=units_spec,
-            streams=streams_spec,
-            origin=origin,
-            bay_width=bay_width,
-            bay_height=bay_height,
-        )
-        resolved_positions = macro_solver.solve()
+        if macro_units:
+            macro_solver = MacroLayoutSolver(
+                units=units_spec,
+                streams=streams_spec,
+                origin=origin,
+                bay_width=bay_width,
+                bay_height=bay_height,
+            )
+            resolved_positions = macro_solver.solve()
 
-        for uid, pos in resolved_positions.items():
-            if uid in self.unitOperations:
-                self.unitOperations[uid].position = pos
+            for uid, pos in resolved_positions.items():
+                if uid in self.unitOperations:
+                    self.unitOperations[uid].position = pos
 
         # 2. Build Spatial Index of Equipment Obstacles
         spatial_index = SpatialIndex()
-        for uid, u in self.unitOperations.items():
+        for u in macro_units:
             box = AABB(
                 u.position[0],
                 u.position[1],
                 u.position[0] + u.size[0],
                 u.position[1] + u.size[1],
             )
-            spatial_index.insert(uid, box, data=u)
+            spatial_index.insert(u.id, box, data=u)
 
-        # 3. Tier 2: Orthogonal Routing
+        # 3. Contextual Instrument Placement & Tap Leader Line Routing
+        for inst in instruments:
+            host = InstrumentTapRouter.resolve_host(inst, self.unitOperations, self.streams)
+            if host is not None:
+                tap, orientation, leader_len = InstrumentTapRouter.get_tap_and_orientation(
+                    host, inst
+                )
+                r = inst.size[0] / 2.0
+                router = InstrumentTapRouter(leader_length=leader_len, balloon_radius=r)
+                placement = router.place_and_route(
+                    tap=tap,
+                    pipe_orientation=orientation,
+                    spatial_index=spatial_index,
+                )
+
+                is_fixed = getattr(inst, "fixed", False) or getattr(inst, "is_fixed", False)
+                should_reposition = not is_fixed and (
+                    force_reposition or inst.position == (0.0, 0.0)
+                )
+
+                if should_reposition:
+                    inst.position = (
+                        placement.balloon_center[0] - inst.size[0] / 2.0,
+                        placement.balloon_center[1] - inst.size[1] / 2.0,
+                    )
+                    inst.leader_line = placement.leader_line
+                    spatial_index.insert(inst.id, placement.balloon_box, data=inst)
+                else:
+                    if not getattr(inst, "leader_line", None):
+                        inst.leader_line = [
+                            tap,
+                            (
+                                inst.position[0] + inst.size[0] / 2.0,
+                                inst.position[1] + inst.size[1] / 2.0,
+                            ),
+                        ]
+                    box = AABB(
+                        inst.position[0],
+                        inst.position[1],
+                        inst.position[0] + inst.size[0],
+                        inst.position[1] + inst.size[1],
+                    )
+                    spatial_index.insert(inst.id, box, data=inst)
+            else:
+                box = AABB(
+                    inst.position[0],
+                    inst.position[1],
+                    inst.position[0] + inst.size[0],
+                    inst.position[1] + inst.size[1],
+                )
+                spatial_index.insert(inst.id, box, data=inst)
+
+        # 4. Tier 2: Orthogonal Routing
         obstacles = [item[1] for item in spatial_index.all_items()]
         router = OrthogonalRouter(grid_size=10.0, turn_penalty=60.0)
 
@@ -315,13 +374,26 @@ class Flowsheet:
                 p_end = s.toPort.get_position()
                 n_end = s.toPort.normal
 
-                route = router.route(
-                    start=p_start,
-                    start_normal=n_start,
-                    end=p_end,
-                    end_normal=n_end,
-                    obstacles=obstacles,
+                u_from = getattr(s.fromPort, "unitoperation", getattr(s.fromPort, "parent", None))
+                u_to = getattr(s.toPort, "unitoperation", getattr(s.toPort, "parent", None))
+                is_signal = (
+                    s.line_type in {"pneumatic", "electric", "digital", "capillary"}
+                    or is_instrument(u_from)
+                    or is_instrument(u_to)
                 )
+
+                if is_signal and abs(p_start[0] - p_end[0]) < 2.0:
+                    route = [p_start, (p_start[0], p_end[1])]
+                elif is_signal and abs(p_start[1] - p_end[1]) < 2.0:
+                    route = [p_start, (p_end[0], p_start[1])]
+                else:
+                    route = router.route(
+                        start=p_start,
+                        start_normal=n_start,
+                        end=p_end,
+                        end_normal=n_end,
+                        obstacles=obstacles,
+                    )
                 s.calculated_route = route
                 routed_streams[s.id] = route
             else:
