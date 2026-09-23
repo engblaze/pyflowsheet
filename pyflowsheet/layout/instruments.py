@@ -230,11 +230,11 @@ class InstrumentTapRouter:
         leader_len = 40.0
         if hasattr(host, "actuator_height"):
             act_h = getattr(host, "actuator_height", 24.0)
-            leader_len = max(leader_len, hh / 2.0 + act_h * 1.1 + r + 8.0)
+            leader_len = max(leader_len, hh / 2.0 + act_h * 1.1 + r + 12.0)
         elif hh > 40.0 and orientation == "horizontal":
-            leader_len = max(leader_len, hh / 2.0 + r + 8.0)
+            leader_len = max(leader_len, hh / 2.0 + r + 10.0)
         elif hw > 40.0 and orientation == "vertical":
-            leader_len = max(leader_len, hw / 2.0 + r + 8.0)
+            leader_len = max(leader_len, hw / 2.0 + r + 10.0)
 
         return tap, orientation, leader_len
 
@@ -243,45 +243,124 @@ class InstrumentTapRouter:
         tap: tuple[float, float],
         pipe_orientation: Literal["horizontal", "vertical"],
         spatial_index: SpatialIndex,
+        host: Any | None = None,
+        inst: Any | None = None,
+        port_keepouts: list[tuple[str, AABB, set[str]]] | None = None,
+        diagram_bounds: AABB | None = None,
     ) -> InstrumentTapPlacement:
         tx, ty = tap
         r = self.balloon_radius
         d = self.leader_length
 
+        SQRT2_2 = 0.7071067811865476
+
         if pipe_orientation == "horizontal":
-            # Candidates: Above (ty - d) or Below (ty + d)
-            cand_above = (tx, ty - d)
-            cand_below = (tx, ty + d)
-
-            box_above = AABB(tx - r, ty - d - r, tx + r, ty - d + r)
-            box_below = AABB(tx - r, ty + d - r, tx + r, ty + d + r)
-
-            cost_above = len(spatial_index.query_intersects(box_above))
-            cost_below = len(spatial_index.query_intersects(box_below))
-
-            if cost_above <= cost_below:
-                chosen_center = cand_above
-                chosen_box = box_above
-            else:
-                chosen_center = cand_below
-                chosen_box = box_below
+            candidates = [
+                ("up", 0.0, -1.0, 0.0),
+                ("down", 0.0, 1.0, 5.0),
+                ("up-right", SQRT2_2, -SQRT2_2, 40.0),
+                ("up-left", -SQRT2_2, -SQRT2_2, 45.0),
+                ("down-right", SQRT2_2, SQRT2_2, 50.0),
+                ("down-left", -SQRT2_2, SQRT2_2, 55.0),
+            ]
         else:
-            # Candidates: Right (tx + d) or Left (tx - d)
-            cand_right = (tx + d, ty)
-            cand_left = (tx - d, ty)
+            candidates = [
+                ("right", 1.0, 0.0, 0.0),
+                ("left", -1.0, 0.0, 5.0),
+                ("up-right", SQRT2_2, -SQRT2_2, 40.0),
+                ("down-right", SQRT2_2, SQRT2_2, 45.0),
+                ("up-left", -SQRT2_2, -SQRT2_2, 50.0),
+                ("down-left", -SQRT2_2, SQRT2_2, 55.0),
+            ]
 
-            box_right = AABB(tx + d - r, ty - r, tx + d + r, ty + r)
-            box_left = AABB(tx - d - r, ty - r, tx - d + r, ty + r)
+        # Extract host dimensions if available
+        half_w = host.size[0] / 2.0 if host is not None and hasattr(host, "size") else 0.0
+        half_h = host.size[1] / 2.0 if host is not None and hasattr(host, "size") else 0.0
+        act_h = (
+            getattr(host, "actuator_height", 24.0)
+            if (host is not None and hasattr(host, "actuator_height"))
+            else 0.0
+        )
+        host_id = getattr(host, "id", None) if host is not None else None
 
-            cost_right = len(spatial_index.query_intersects(box_right))
-            cost_left = len(spatial_index.query_intersects(box_left))
+        # Build local port keepouts if none provided but host has ports
+        if port_keepouts is None and host is not None and hasattr(host, "ports") and host.ports:
+            port_keepouts = []
+            for pname, p in host.ports.items():
+                pos = p.get_position()
+                nx, ny = p.normal
+                c_len = 35.0
+                c_w = 14.0
+                if abs(nx) > 0.5:
+                    min_x = min(pos[0], pos[0] + nx * c_len)
+                    max_x = max(pos[0], pos[0] + nx * c_len)
+                    min_y = pos[1] - c_w
+                    max_y = pos[1] + c_w
+                    port_keepouts.append(
+                        (f"{host_id}:{pname}", AABB(min_x, min_y, max_x, max_y), set())
+                    )
+                elif abs(ny) > 0.5:
+                    min_x = pos[0] - c_w
+                    max_x = pos[0] + c_w
+                    min_y = min(pos[1], pos[1] + ny * c_len)
+                    max_y = max(pos[1], pos[1] + ny * c_len)
+                    port_keepouts.append(
+                        (f"{host_id}:{pname}", AABB(min_x, min_y, max_x, max_y), set())
+                    )
 
-            if cost_right <= cost_left:
-                chosen_center = cand_right
-                chosen_box = box_right
+        scored_candidates = []
+        for cname, ux, uy, base_penalty in candidates:
+            # Distance from tap to balloon center
+            if host is not None and (half_w > 0.0 or half_h > 0.0):
+                h_eff = half_h + act_h if (uy < -0.1 and act_h > 0.0) else half_h
+                tx_dist = half_w / abs(ux) if abs(ux) > 1e-4 else 1e9
+                ty_dist = h_eff / abs(uy) if abs(uy) > 1e-4 else 1e9
+                t_box = min(tx_dist, ty_dist)
+                cand_dist = max(d, t_box + r + 16.0)
             else:
-                chosen_center = cand_left
-                chosen_box = box_left
+                cand_dist = d
+
+            cx = tx + ux * cand_dist
+            cy = ty + uy * cand_dist
+            cand_box = AABB(cx - r, cy - r, cx + r, cy + r)
+
+            cost = base_penalty
+
+            # Diagram bounds
+            if diagram_bounds is not None and not diagram_bounds.contains_point((cx, cy)):
+                cost += 1_000_000.0
+
+            # Obstacle checks from spatial_index
+            for item in spatial_index.all_items():
+                iid, ibox = item[0], item[1]
+                if host_id is not None and iid == host_id:
+                    continue
+                # Hard obstacle collision
+                if cand_box.intersects(ibox):
+                    cost += 100_000.0
+                # Obstacle proximity / clearance penalty (8px margin)
+                expanded = cand_box.expanded(8.0)
+                if expanded.intersects(ibox):
+                    cost += 5_000.0
+                # Leader line penetration through another equipment
+                if ibox.intersects_segment(tap, (cx, cy)):
+                    cost += 80_000.0
+
+            # Port keepout corridor checks
+            if port_keepouts:
+                inst_id = getattr(inst, "id", None) if inst is not None else None
+                for pid, pkbox, conn_uids in port_keepouts:
+                    if inst_id is not None and inst_id in conn_uids:
+                        continue
+                    if cand_box.intersects(pkbox):
+                        cost += 50_000.0
+                    if pkbox.intersects_segment(tap, (cx, cy)):
+                        cost += 20_000.0
+
+            scored_candidates.append((cost, (cx, cy), cand_box))
+
+        scored_candidates.sort(key=lambda item: item[0])
+        best_cost, chosen_center, chosen_box = scored_candidates[0]
 
         return InstrumentTapPlacement(
             tap=tap,

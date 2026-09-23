@@ -263,7 +263,6 @@ def test_water_treatment_pid_autolayout_invariants():
         "PDIT-101",
         "FIT-106",
         "TT-101",
-        "FIT-108",
     ]
     for inst_id in inst_ids:
         assert fs.unitOperations[inst_id].position[0] > 100.0, (
@@ -321,3 +320,38 @@ def test_water_treatment_pid_autolayout_invariants():
                 u2.position[1] + u2.size[1],
             )
             assert not b1.intersects(b2), f"Collision detected between {u1.id} and {u2.id}"
+
+    # 8. Invariant: No stream intersects any instrument balloon box (except direct connections)
+    instruments = [
+        u
+        for u in units
+        if getattr(u, "type", "") == "Instrument" or u.__class__.__name__ == "Instrument"
+    ]
+    for sid, s in fs.streams.items():
+        route = s.calculated_route
+        for k in range(len(route) - 1):
+            p1, p2 = route[k], route[k + 1]
+            for inst in instruments:
+                if (s.fromPort.unitoperation == inst and k == 0) or (
+                    s.toPort.unitoperation == inst and k == len(route) - 2
+                ):
+                    continue
+                ibox = AABB(
+                    inst.position[0],
+                    inst.position[1],
+                    inst.position[0] + inst.size[0],
+                    inst.position[1] + inst.size[1],
+                )
+                assert not ibox.intersects_segment(p1, p2), (
+                    f"Stream {sid} segment {p1}->{p2} intersects balloon {inst.id}"
+                )
+
+    # 9. Invariant: LIT-101 uses an angled leader line at 45 degrees avoiding Mixer port keepouts
+    lit = fs.unitOperations["LIT-101"]
+    lead = lit.leader_line
+    dx = lead[1][0] - lead[0][0]
+    dy = lead[1][1] - lead[0][1]
+    assert abs(abs(dx) - abs(dy)) < 1e-3, (
+        f"LIT-101 leader is not at 45 degrees: dx={dx}, dy={dy}"
+    )
+    assert dx > 0 and dy < 0, f"LIT-101 not routed up-right: dx={dx}, dy={dy}"

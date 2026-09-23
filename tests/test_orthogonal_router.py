@@ -292,3 +292,103 @@ def test_collinear_unblocked_fast_path():
     )
     # Must be directly connected with a single 2-point segment without grid snapping
     assert path == [(461.0, 138.0), (516.0, 138.0)]
+
+
+def test_remove_self_intersections():
+    from pyflowsheet.layout.router import remove_self_intersections
+
+    # Path with self-intersection / loop crossing over itself
+    path = [
+        (720.0, 117.0),
+        (740.0, 117.0),
+        (740.0, 120.0),
+        (760.0, 120.0),
+        (760.0, 110.0),
+        (755.0, 110.0),
+        (755.0, 112.5),
+        (775.0, 112.5),
+    ]
+    cleaned = remove_self_intersections(path)
+    # Loop crossing over itself between (760, 120)->(760, 110) and (755, 112.5)->(775, 112.5) removed
+    assert cleaned == [
+        (720.0, 117.0),
+        (740.0, 117.0),
+        (740.0, 120.0),
+        (760.0, 120.0),
+        (760.0, 112.5),
+        (775.0, 112.5),
+    ]
+
+
+def test_facing_ports_z_bend_fast_path():
+    router = OrthogonalRouter(grid_size=10.0)
+    # Ports facing each other with 55px separation and 4.5px vertical delta
+    path = router.route(
+        start=(720.0, 117.0),
+        start_normal=(1.0, 0.0),
+        end=(775.0, 112.5),
+        end_normal=(-1.0, 0.0),
+        obstacles=[],
+    )
+    # Direct 2-turn Z-bend without small jogs down or loops
+    assert path == [
+        (720.0, 117.0),
+        (750.0, 117.0),
+        (750.0, 112.5),
+        (775.0, 112.5),
+    ]
+
+
+def test_simplify_orthogonal_path_eliminates_u_jogs():
+    from pyflowsheet.layout.router import simplify_orthogonal_path
+
+    # Path with a 1px jog left and right (like S09_1 before fix)
+    path = [
+        (421.0, -65.0),
+        (421.0, -45.0),
+        (420.0, -45.0),
+        (420.0, -32.5),
+        (421.0, -32.5),
+        (421.0, -12.5),
+    ]
+    cleaned = simplify_orthogonal_path(
+        path,
+        start_normal=(0.0, 1.0),
+        end_normal=(0.0, -1.0),
+    )
+    assert cleaned == [(421.0, -65.0), (421.0, -12.5)]
+
+
+def test_water_treatment_pid_routes_free_of_redundant_jogs_and_loops():
+    from pyflowsheet.core import Flowsheet
+
+    fs = Flowsheet.from_yaml("examples/water_treatment_pid.yaml")
+    fs.auto_layout(force_reposition=True)
+
+    # S09_1: straight vertical line, no jogs left and right
+    assert fs.streams["S09_1"].calculated_route == [(421.0, -65.0), (421.0, -12.5)]
+
+    # S03_1: clean 2-turn Z-step, no jog down and no loop crossing over itself
+    assert fs.streams["S03_1"].calculated_route == [
+        (720.0, 117.0),
+        (750.0, 117.0),
+        (750.0, 112.5),
+        (775.0, 112.5),
+    ]
+
+    # S05_2: clean 2-turn Z-step, no jog down and no loop crossing over itself
+    assert fs.streams["S05_2"].calculated_route == [
+        (746.3333333333334, 328.0),
+        (670.0, 328.0),
+        (670.0, 325.0),
+        (591.6666666666667, 325.0),
+    ]
+
+    # S07_1: clean 3-turn route, no self-crossing loop
+    assert fs.streams["S07_1"].calculated_route == [
+        (944.0, 100.0),
+        (944.0, 80.0),
+        (1020.0, 80.0),
+        (1020.0, 115.0),
+        (1047.5, 115.0),
+    ]

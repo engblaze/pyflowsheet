@@ -5,7 +5,7 @@ from .inline import InlinePlacement, InlineSequencer
 from .instruments import InstrumentTapPlacement, InstrumentTapRouter
 from .labels import LabelPlacementSolver
 from .macro import FlowsheetGraph, MacroLayoutSolver
-from .router import OrthogonalRouter, compress_orthogonal_path
+from .router import OrthogonalRouter, compress_orthogonal_path, simplify_orthogonal_path
 from .spatial import AABB, SpatialIndex
 
 __all__ = [
@@ -15,6 +15,7 @@ __all__ = [
     "MacroLayoutSolver",
     "OrthogonalRouter",
     "compress_orthogonal_path",
+    "simplify_orthogonal_path",
     "CrossoverBridge",
     "CrossoverDetector",
     "InlinePlacement",

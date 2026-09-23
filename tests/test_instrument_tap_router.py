@@ -145,3 +145,73 @@ def test_instrument_leader_line_svg_rendering():
     # Verify leader line path is rendered inside FIT-101 group
     assert 'id="FIT-101"' in svg_str
     assert f"M {inst.leader_line[0][0]}" in svg_str
+
+
+def test_tap_routes_angled_45_when_vertical_obstructed():
+    spatial_index = SpatialIndex()
+    # Block straight above and straight below
+    spatial_index.insert("OBSTACLE_ABOVE", AABB(90.0, 40.0, 110.0, 80.0))
+    spatial_index.insert("OBSTACLE_BELOW", AABB(90.0, 120.0, 110.0, 160.0))
+
+    router = InstrumentTapRouter(leader_length=40.0, balloon_radius=12.0)
+    placement = router.place_and_route(
+        tap=(100.0, 100.0),
+        pipe_orientation="horizontal",
+        spatial_index=spatial_index,
+    )
+
+    dx = placement.balloon_center[0] - 100.0
+    dy = placement.balloon_center[1] - 100.0
+
+    # Must be angled at 45 degrees (|dx| == |dy|)
+    assert abs(abs(dx) - abs(dy)) < 1e-4
+    assert dx != 0.0 and dy != 0.0
+    # Balloon box does not intersect obstacles
+    for _, box, _ in spatial_index.all_items():
+        assert not placement.balloon_box.intersects(box)
+
+
+def test_tap_routes_angled_when_port_keepout_blocks_orthogonal():
+    spatial_index = SpatialIndex()
+    # Port keepout blocking straight up and straight down
+    keepouts = [
+        ("U1:TopPort", AABB(90.0, 50.0, 110.0, 80.0), set()),
+        ("U1:BottomPort", AABB(90.0, 120.0, 110.0, 150.0), set()),
+    ]
+
+    router = InstrumentTapRouter(leader_length=40.0, balloon_radius=12.0)
+    placement = router.place_and_route(
+        tap=(100.0, 100.0),
+        pipe_orientation="horizontal",
+        spatial_index=spatial_index,
+        port_keepouts=keepouts,
+    )
+
+    dx = placement.balloon_center[0] - 100.0
+    dy = placement.balloon_center[1] - 100.0
+    # Angled lead at 45 degrees selected to avoid the port keepouts
+    assert abs(abs(dx) - abs(dy)) < 1e-4
+    assert dx != 0.0 and dy != 0.0
+
+
+def test_tap_prefers_orthogonal_over_angled_when_unobstructed():
+    spatial_index = SpatialIndex()
+    router = InstrumentTapRouter(leader_length=40.0, balloon_radius=12.0)
+
+    # Horizontal orientation defaults to vertical (dx == 0)
+    p_horiz = router.place_and_route(
+        tap=(100.0, 100.0),
+        pipe_orientation="horizontal",
+        spatial_index=spatial_index,
+    )
+    assert p_horiz.balloon_center[0] == 100.0
+    assert p_horiz.balloon_center[1] < 100.0
+
+    # Vertical orientation defaults to horizontal (dy == 0)
+    p_vert = router.place_and_route(
+        tap=(100.0, 100.0),
+        pipe_orientation="vertical",
+        spatial_index=spatial_index,
+    )
+    assert p_vert.balloon_center[1] == 100.0
+    assert p_vert.balloon_center[0] > 100.0

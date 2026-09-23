@@ -38,6 +38,37 @@ class AABB:
         x, y = point
         return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
 
+    def intersects_segment(
+        self, p1: tuple[float, float], p2: tuple[float, float]
+    ) -> bool:
+        """Determines if the line segment from p1 to p2 intersects this AABB using Liang-Barsky."""
+        if self.contains_point(p1) or self.contains_point(p2):
+            return True
+        x1, y1 = p1
+        x2, y2 = p2
+        dx = x2 - x1
+        dy = y2 - y1
+        p = [-dx, dx, -dy, dy]
+        q = [x1 - self.min_x, self.max_x - x1, y1 - self.min_y, self.max_y - y1]
+        u1, u2 = 0.0, 1.0
+        for i in range(4):
+            if abs(p[i]) < 1e-9:
+                if q[i] < 0:
+                    return False
+            else:
+                t = q[i] / p[i]
+                if p[i] < 0:
+                    if t > u2:
+                        return False
+                    if t > u1:
+                        u1 = t
+                else:
+                    if t < u1:
+                        return False
+                    if t < u2:
+                        u2 = t
+        return u1 <= u2
+
     def expanded(self, margin: float) -> AABB:
         return AABB(
             self.min_x - margin,
@@ -129,3 +160,7 @@ class SpatialIndex:
 
     def all_items(self) -> list[tuple[str, AABB, Any]]:
         return [(item_id, box, data) for item_id, (box, data) in self._items.items()]
+
+    def get_box(self, item_id: str) -> AABB | None:
+        item = self._items.get(item_id)
+        return item[0] if item is not None else None

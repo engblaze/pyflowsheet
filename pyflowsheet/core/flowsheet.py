@@ -481,15 +481,77 @@ class Flowsheet:
         # 2. Build Spatial Index of Equipment Obstacles
         spatial_index = SpatialIndex()
         for u in macro_units:
-            box = AABB(
-                u.position[0],
-                u.position[1],
-                u.position[0] + u.size[0],
-                u.position[1] + u.size[1],
-            )
+            rot = getattr(u, "rotation", 0) % 360
+            if rot in (90, 270):
+                cx = u.position[0] + u.size[0] / 2.0
+                cy = u.position[1] + u.size[1] / 2.0
+                hw = u.size[1] / 2.0
+                hh = u.size[0] / 2.0
+                box = AABB(cx - hw, cy - hh, cx + hw, cy + hh)
+            else:
+                box = AABB(
+                    u.position[0],
+                    u.position[1],
+                    u.position[0] + u.size[0],
+                    u.position[1] + u.size[1],
+                )
             spatial_index.insert(u.id, box, data=u)
 
         # 3. Contextual Instrument Placement & Tap Leader Line Routing
+        port_keepouts: list[tuple[str, AABB, set[str]]] = []
+        for u in macro_units:
+            if hasattr(u, "ports") and u.ports:
+                for p in u.ports.values():
+                    streams_for_port = [
+                        s
+                        for s in self.streams.values()
+                        if s.fromPort == p or s.toPort == p
+                    ]
+                    if not streams_for_port:
+                        continue
+                    connected_uids = set()
+                    for s in streams_for_port:
+                        u_from = getattr(
+                            s.fromPort,
+                            "unitoperation",
+                            getattr(s.fromPort, "parent", None),
+                        )
+                        u_to = getattr(
+                            s.toPort, "unitoperation", getattr(s.toPort, "parent", None)
+                        )
+                        if u_from:
+                            connected_uids.add(u_from.id)
+                        if u_to:
+                            connected_uids.add(u_to.id)
+                    pos = p.get_position()
+                    nx, ny = p.normal
+                    c_len = 35.0
+                    c_w = 14.0
+                    if abs(nx) > 0.5:
+                        min_x = min(pos[0], pos[0] + nx * c_len)
+                        max_x = max(pos[0], pos[0] + nx * c_len)
+                        min_y = pos[1] - c_w
+                        max_y = pos[1] + c_w
+                        port_keepouts.append(
+                            (
+                                f"{u.id}:{p.name}",
+                                AABB(min_x, min_y, max_x, max_y),
+                                connected_uids,
+                            )
+                        )
+                    elif abs(ny) > 0.5:
+                        min_x = pos[0] - c_w
+                        max_x = pos[0] + c_w
+                        min_y = min(pos[1], pos[1] + ny * c_len)
+                        max_y = max(pos[1], pos[1] + ny * c_len)
+                        port_keepouts.append(
+                            (
+                                f"{u.id}:{p.name}",
+                                AABB(min_x, min_y, max_x, max_y),
+                                connected_uids,
+                            )
+                        )
+
         for inst in instruments:
             host = InstrumentTapRouter.resolve_host(inst, self.unitOperations, self.streams)
             if host is not None:
@@ -502,6 +564,9 @@ class Flowsheet:
                     tap=tap,
                     pipe_orientation=orientation,
                     spatial_index=spatial_index,
+                    host=host,
+                    inst=inst,
+                    port_keepouts=port_keepouts,
                 )
 
                 is_fixed = getattr(inst, "fixed", False) or getattr(inst, "is_fixed", False)
@@ -555,6 +620,8 @@ class Flowsheet:
 
                 u_from = getattr(s.fromPort, "unitoperation", getattr(s.fromPort, "parent", None))
                 u_to = getattr(s.toPort, "unitoperation", getattr(s.toPort, "parent", None))
+                s_box = spatial_index.get_box(u_from.id) if u_from is not None else None
+                t_box = spatial_index.get_box(u_to.id) if u_to is not None else None
                 is_signal = (
                     s.line_type in {"pneumatic", "electric", "digital", "capillary"}
                     or is_instrument(u_from)
@@ -572,6 +639,8 @@ class Flowsheet:
                         end=p_end,
                         end_normal=n_end,
                         obstacles=obstacles,
+                        source_box=s_box,
+                        target_box=t_box,
                     )
                 s.calculated_route = route
                 routed_streams[s.id] = route
