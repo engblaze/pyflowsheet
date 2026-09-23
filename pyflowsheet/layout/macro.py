@@ -64,7 +64,8 @@ class FlowsheetGraph:
         # Adjacency
         self.adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
         self.rev_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
-        for s_id, u_from, u_to in self.raw_streams:
+        for item in self.raw_streams:
+            s_id, u_from, u_to = item[0], item[1], item[2]
             if u_from in self.unit_ids and u_to in self.unit_ids:
                 self.adj[u_from].append((u_to, s_id))
                 self.rev_adj[u_to].append((u_from, s_id))
@@ -95,7 +96,8 @@ class FlowsheetGraph:
 
         # Start DFS from source nodes (in_degree == 0) first for deterministic forward traversal
         in_deg: dict[str, int] = {u: 0 for u in self.unit_ids}
-        for _, u_from, u_to in self.raw_streams:
+        for item in self.raw_streams:
+            u_from, u_to = item[1], item[2]
             if u_from in in_deg and u_to in in_deg:
                 in_deg[u_to] += 1
 
@@ -159,7 +161,8 @@ class FlowsheetGraph:
                     }
                 )
 
-        for s_id, u_from, u_to in self.raw_streams:
+        for item in self.raw_streams:
+            s_id, u_from, u_to = item[0], item[1], item[2]
             if (
                 u_from in self.unit_ids
                 and u_to in self.unit_ids
@@ -231,6 +234,18 @@ class MacroLayoutSolver:
         self.bay_height = bay_height
         self.flow_direction = flow_direction
         self.recycle_corridors: dict[str, str] = {}
+        self.stream_ports: dict[str, tuple[str | None, str | None]] = {}
+        for s in self.streams:
+            if isinstance(s, (tuple, list)) and len(s) >= 5:
+                self.stream_ports[str(s[0])] = (
+                    str(s[3]) if s[3] is not None else None,
+                    str(s[4]) if s[4] is not None else None,
+                )
+            elif isinstance(s, dict):
+                self.stream_ports[str(s.get("id", ""))] = (
+                    s.get("from_port"),
+                    s.get("to_port"),
+                )
 
         unit_ids = list(self.units.keys())
         unit_types = {uid: self._get_unit_type(u) for uid, u in self.units.items()}
@@ -262,6 +277,354 @@ class MacroLayoutSolver:
     def get_recycle_corridors(self) -> dict[str, str]:
         """Returns mapping of recycle stream ID to corridor assignment ('top' or 'bottom')."""
         return dict(self.recycle_corridors)
+
+    def _get_ports_for_unit(self, uid: str) -> dict[str, dict[str, Any]]:
+        u = self.units.get(uid, {})
+        raw_ports = u.get("ports")
+        if not raw_ports:
+            u_obj = u.get("unit")
+            if u_obj and hasattr(u_obj, "ports"):
+                raw_ports = u_obj.ports
+
+        if not raw_ports:
+            return {}
+
+        result: dict[str, dict[str, Any]] = {}
+        if isinstance(raw_ports, dict):
+            for pname, p in raw_ports.items():
+                if isinstance(p, (tuple, list)):
+                    rx, ry = float(p[0]), float(p[1])
+                    if rx >= 0.9:
+                        normal = (1.0, 0.0)
+                        intent = "out"
+                    elif rx <= 0.1:
+                        normal = (-1.0, 0.0)
+                        intent = "in"
+                    elif ry <= 0.1:
+                        normal = (0.0, -1.0)
+                        intent = "in"
+                    elif ry >= 0.9:
+                        normal = (0.0, 1.0)
+                        intent = "out"
+                    else:
+                        intent = "out" if "out" in str(pname).lower() else "in"
+                        normal = (1.0, 0.0) if intent == "out" else (-1.0, 0.0)
+                    result[str(pname)] = {
+                        "name": str(pname),
+                        "rel_pos": (rx, ry),
+                        "normal": normal,
+                        "intent": intent,
+                    }
+                elif isinstance(p, dict):
+                    pos = (
+                        p.get("rel_pos")
+                        or p.get("relativePosition")
+                        or (p.get("x", 0.0), p.get("y", 0.0))
+                    )
+                    rx, ry = float(pos[0]), float(pos[1])
+                    norm = p.get("normal")
+                    intent = p.get("intent")
+                    if norm is None:
+                        if rx >= 0.9:
+                            norm = (1.0, 0.0)
+                        elif rx <= 0.1:
+                            norm = (-1.0, 0.0)
+                        elif ry <= 0.1:
+                            norm = (0.0, -1.0)
+                        elif ry >= 0.9:
+                            norm = (0.0, 1.0)
+                        else:
+                            norm = (
+                                (1.0, 0.0)
+                                if intent == "out" or "out" in str(pname).lower()
+                                else (-1.0, 0.0)
+                            )
+                    if intent is None:
+                        intent = (
+                            "out"
+                            if norm[0] > 0 or norm[1] > 0 or "out" in str(pname).lower()
+                            else "in"
+                        )
+                    result[str(pname)] = {
+                        "name": str(pname),
+                        "rel_pos": (rx, ry),
+                        "normal": (float(norm[0]), float(norm[1])),
+                        "intent": str(intent),
+                    }
+                else:
+                    pos = getattr(p, "relativePosition", (0.0, 0.0))
+                    rx, ry = float(pos[0]), float(pos[1])
+                    norm = getattr(p, "normal", None)
+                    intent = getattr(p, "intent", None)
+                    if norm is None:
+                        norm = (1.0, 0.0) if rx >= 0.9 else (-1.0, 0.0)
+                    if intent is None:
+                        intent = "out" if norm[0] > 0 else "in"
+                    result[str(pname)] = {
+                        "name": str(pname),
+                        "rel_pos": (rx, ry),
+                        "normal": (float(norm[0]), float(norm[1])),
+                        "intent": str(intent),
+                    }
+        return result
+
+    def _find_out_port(self, uid: str, port_name: str | None = None) -> dict[str, Any] | None:
+        ports = self._get_ports_for_unit(uid)
+        if not ports:
+            return None
+        if port_name and port_name in ports:
+            return ports[port_name]
+
+        if self.flow_direction == "down":
+            candidates = [
+                p
+                for p in ports.values()
+                if (abs(p["normal"][0]) < 0.01 and abs(p["normal"][1] - 1.0) < 0.01)
+                or p["rel_pos"][1] >= 0.9
+            ]
+            if candidates:
+                for c in candidates:
+                    if c["name"].lower() in {"out", "bottom", "bottoms"}:
+                        return c
+                return candidates[0]
+        elif self.flow_direction == "left":
+            candidates = [
+                p
+                for p in ports.values()
+                if (abs(p["normal"][0] - (-1.0)) < 0.01 and abs(p["normal"][1]) < 0.01)
+                or p["rel_pos"][0] <= 0.1
+            ]
+            if candidates:
+                for c in candidates:
+                    if c["name"].lower() == "out":
+                        return c
+                return candidates[0]
+        else:  # "right"
+            candidates = [
+                p
+                for p in ports.values()
+                if (abs(p["normal"][0] - 1.0) < 0.01 and abs(p["normal"][1]) < 0.01)
+                or p["rel_pos"][0] >= 0.9
+                or p["intent"] == "out"
+            ]
+            if candidates:
+                for c in candidates:
+                    if c["name"].lower() == "out":
+                        return c
+                for c in candidates:
+                    if abs(c["normal"][0] - 1.0) < 0.01 and abs(c["normal"][1]) < 0.01:
+                        return c
+                return candidates[0]
+        return None
+
+    def _find_in_port(self, uid: str, port_name: str | None = None) -> dict[str, Any] | None:
+        ports = self._get_ports_for_unit(uid)
+        if not ports:
+            return None
+        if port_name and port_name in ports:
+            return ports[port_name]
+
+        if self.flow_direction == "down":
+            candidates = [
+                p
+                for p in ports.values()
+                if (abs(p["normal"][0]) < 0.01 and abs(p["normal"][1] - (-1.0)) < 0.01)
+                or p["rel_pos"][1] <= 0.1
+            ]
+            if candidates:
+                for c in candidates:
+                    if c["name"].lower() in {"in", "top", "feed"}:
+                        return c
+                return candidates[0]
+        elif self.flow_direction == "left":
+            candidates = [
+                p
+                for p in ports.values()
+                if (abs(p["normal"][0] - 1.0) < 0.01 and abs(p["normal"][1]) < 0.01)
+                or p["rel_pos"][0] >= 0.9
+            ]
+            if candidates:
+                for c in candidates:
+                    if c["name"].lower() == "in":
+                        return c
+                return candidates[0]
+        else:  # "right"
+            candidates = [
+                p
+                for p in ports.values()
+                if (abs(p["normal"][0] - (-1.0)) < 0.01 and abs(p["normal"][1]) < 0.01)
+                or p["rel_pos"][0] <= 0.1
+                or p["intent"] == "in"
+            ]
+            if candidates:
+                for c in candidates:
+                    if c["name"].lower() == "in":
+                        return c
+                for c in candidates:
+                    if abs(c["normal"][0] - (-1.0)) < 0.01 and abs(c["normal"][1]) < 0.01:
+                        return c
+                return candidates[0]
+        return None
+
+    def _align_port_elevations(
+        self,
+        positions: dict[str, tuple[float, float]],
+        fixed_units: set[str],
+    ) -> None:
+        """Adjusts the positions of downstream components connected via opposing
+        horizontal (or vertical) ports so that connection elevations match cleanly.
+        """
+        vertically_constrained: set[str] = set(fixed_units)
+        for uid, u in self.units.items():
+            hints = u.get("layout_hints")
+            if hints:
+                rel = (
+                    hints.get("relative_to")
+                    if isinstance(hints, dict)
+                    else getattr(hints, "relative_to", None)
+                )
+                if rel:
+                    direction = (
+                        rel.get("direction")
+                        if isinstance(rel, dict)
+                        else getattr(rel, "direction", None)
+                    )
+                    if self.flow_direction == "down":
+                        if direction in {"left", "right"}:
+                            vertically_constrained.add(uid)
+                    else:
+                        if direction in {"above", "below"}:
+                            vertically_constrained.add(uid)
+
+        forward_incoming: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
+        for item in self.streams:
+            s_id, u_from, u_to = str(item[0]), str(item[1]), str(item[2])
+            if (
+                s_id not in self.graph.recycle_streams
+                and u_from in self.units
+                and u_to in self.units
+            ):
+                forward_incoming[u_to].append((s_id, u_from, u_to))
+
+        primary_incoming_stream: dict[str, str] = {}
+        for uid, inc_streams in forward_incoming.items():
+            if len(inc_streams) == 1:
+                primary_incoming_stream[uid] = inc_streams[0][0]
+            elif len(inc_streams) > 1:
+
+                def _score_stream(s_tuple: tuple[str, str, str]) -> int:
+                    s_id, u_from, _ = s_tuple
+                    score = 0
+                    if u_from in self.graph.primary_units:
+                        score += 100
+                    _, to_p = self.stream_ports.get(s_id, (None, None))
+                    in_port = self._find_in_port(uid, to_p)
+                    if in_port:
+                        pname = in_port["name"].lower()
+                        if pname in {"in", "feed", "intube", "tin"}:
+                            score += 50
+                        elif pname == "in1":
+                            score += 40
+                        score += int((1.0 - abs(in_port["rel_pos"][1] - 0.5)) * 10)
+                    return score
+
+                best_stream = max(inc_streams, key=_score_stream)
+                primary_incoming_stream[uid] = best_stream[0]
+
+        dag_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        in_deg: dict[str, int] = {u: 0 for u in self.units}
+        for item in self.graph.forward_edges:
+            s_id, u_from, u_to = str(item[0]), str(item[1]), str(item[2])
+            if u_from in self.units and u_to in self.units:
+                dag_adj[u_from].append((u_to, s_id))
+                in_deg[u_to] += 1
+
+        queue = deque([u for u in self.units if in_deg[u] == 0])
+        topo_order: list[str] = []
+        while queue:
+            curr = queue.popleft()
+            topo_order.append(curr)
+            for nxt, _ in dag_adj[curr]:
+                in_deg[nxt] -= 1
+                if in_deg[nxt] == 0:
+                    queue.append(nxt)
+
+        for u in self.units:
+            if u not in topo_order:
+                topo_order.append(u)
+
+        for u in topo_order:
+            if u not in positions:
+                continue
+            for v, s_id in dag_adj.get(u, []):
+                if v not in positions:
+                    continue
+                if v in vertically_constrained:
+                    continue
+                if primary_incoming_stream.get(v) != s_id:
+                    continue
+
+                from_p, to_p = self.stream_ports.get(s_id, (None, None))
+                out_port = self._find_out_port(u, from_p)
+                in_port = self._find_in_port(v, to_p)
+                if not out_port or not in_port:
+                    continue
+
+                u_sz = self.units[u].get("size")
+                v_sz = self.units[v].get("size")
+                u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                v_w = float(v_sz[0]) if v_sz is not None else 40.0
+                v_h = float(v_sz[1]) if v_sz is not None else 40.0
+
+                if self.flow_direction == "down":
+                    if positions[v][1] <= positions[u][1]:
+                        continue
+                    if abs(positions[u][0] - positions[v][0]) >= self.bay_width * 0.75:
+                        continue
+                    if not (
+                        abs(out_port["normal"][0]) < 0.01
+                        and abs(out_port["normal"][1] - 1.0) < 0.01
+                        and abs(in_port["normal"][0]) < 0.01
+                        and abs(in_port["normal"][1] - (-1.0)) < 0.01
+                    ):
+                        continue
+                    port_x_u = positions[u][0] + out_port["rel_pos"][0] * u_w
+                    new_x_v = port_x_u - in_port["rel_pos"][0] * v_w
+                    positions[v] = (new_x_v, positions[v][1])
+                    vertically_constrained.add(v)
+                elif self.flow_direction == "left":
+                    if positions[v][0] >= positions[u][0]:
+                        continue
+                    if abs(positions[u][1] - positions[v][1]) >= self.bay_height * 0.75:
+                        continue
+                    if not (
+                        abs(out_port["normal"][0] - (-1.0)) < 0.01
+                        and abs(out_port["normal"][1]) < 0.01
+                        and abs(in_port["normal"][0] - 1.0) < 0.01
+                        and abs(in_port["normal"][1]) < 0.01
+                    ):
+                        continue
+                    port_y_u = positions[u][1] + out_port["rel_pos"][1] * u_h
+                    new_y_v = port_y_u - in_port["rel_pos"][1] * v_h
+                    positions[v] = (positions[v][0], new_y_v)
+                    vertically_constrained.add(v)
+                else:  # "right"
+                    if positions[v][0] <= positions[u][0]:
+                        continue
+                    if abs(positions[u][1] - positions[v][1]) >= self.bay_height * 0.75:
+                        continue
+                    if not (
+                        abs(out_port["normal"][0] - 1.0) < 0.01
+                        and abs(out_port["normal"][1]) < 0.01
+                        and abs(in_port["normal"][0] - (-1.0)) < 0.01
+                        and abs(in_port["normal"][1]) < 0.01
+                    ):
+                        continue
+                    port_y_u = positions[u][1] + out_port["rel_pos"][1] * u_h
+                    new_y_v = port_y_u - in_port["rel_pos"][1] * v_h
+                    positions[v] = (positions[v][0], new_y_v)
+                    vertically_constrained.add(v)
 
     def solve(self) -> dict[str, tuple[float, float]]:
         """Executes layout solving and returns dictionary mapping unit ID to (x, y)."""
@@ -402,8 +765,8 @@ class MacroLayoutSolver:
             stage_coords[s + 1] = max(stage_coords.get(s + 1, 0.0), curr_coord + max_step_span)
 
         primary_bays: dict[int, list[str]] = defaultdict(list)
-        for uid in primary_units:
-            if uid not in fixed_units:
+        for uid in self.units:
+            if uid in primary_units and uid not in fixed_units:
                 primary_bays[primary_stages[uid]].append(uid)
 
         for stage_idx, bay_units in sorted(primary_bays.items()):
@@ -691,5 +1054,8 @@ class MacroLayoutSolver:
 
             if not changed:
                 break
+
+        # 9. Port-to-port elevation alignment pass
+        self._align_port_elevations(positions, fixed_units)
 
         return positions

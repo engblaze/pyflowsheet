@@ -249,10 +249,20 @@ class Flowsheet:
                 getattr(u, "fixed", False) or getattr(u, "is_fixed", False)
             ):
                 pos = (0.0, 0.0)
+            ports_spec = {}
+            if hasattr(u, "ports") and u.ports:
+                for pname, p in u.ports.items():
+                    ports_spec[pname] = {
+                        "rel_pos": getattr(p, "relativePosition", (0.0, 0.0)),
+                        "normal": getattr(p, "normal", (0, 0)),
+                        "intent": getattr(p, "intent", None),
+                    }
             spec = {
                 "id": uid,
                 "size": u.size,
                 "position": pos,
+                "type": getattr(u, "type", u.__class__.__name__),
+                "ports": ports_spec,
                 "layout_hints": getattr(u, "layout_hints", None),
                 "fixed": getattr(u, "fixed", False) or getattr(u, "is_fixed", False),
             }
@@ -264,8 +274,10 @@ class Flowsheet:
             u_to = getattr(s.toPort, "unitoperation", getattr(s.toPort, "parent", None))
             from_id = u_from.id if u_from is not None else None
             to_id = u_to.id if u_to is not None else None
+            from_port = getattr(s.fromPort, "name", None)
+            to_port = getattr(s.toPort, "name", None)
             if from_id and to_id:
-                streams_spec.append((s.id, from_id, to_id))
+                streams_spec.append((s.id, from_id, to_id, from_port, to_port))
 
         macro_solver = MacroLayoutSolver(
             units=units_spec,

@@ -227,3 +227,104 @@ def test_full_recycle_chain_placed_in_reverse_order():
     assert positions["PCV"][1] > positions["NF"][1]
     assert positions["CKV"][0] < positions["PCV"][0]
 
+
+def test_port_elevation_alignment():
+    # Wastewater (size 40x40, port at (1.0, 0.5) -> y=20)
+    # P-101 (size 30x30, port at (0.0, 0.5) -> y=15)
+    units = [
+        {
+            "id": "Wastewater",
+            "size": (40, 40),
+            "position": (0, 0),
+            "type": "StreamFlag",
+            "ports": {"Out": (1.0, 0.5)},
+        },
+        {
+            "id": "P-101",
+            "size": (30, 30),
+            "position": (0, 0),
+            "type": "Pump",
+            "ports": {"In": (0.0, 0.5)},
+        },
+    ]
+    streams = [("S1", "Wastewater", "P-101")]
+    solver = MacroLayoutSolver(units=units, streams=streams, origin=(50, 100))
+    positions = solver.solve()
+
+    # The Y-coordinate of P-101 should be adjusted so its In port matches Wastewater's Out port:
+    # Wastewater Out port Y = 100 + 20 = 120
+    # P-101 In port Y = P_y + 15 -> P_y must be 105
+    assert positions["P-101"][1] == 105.0
+
+
+def test_port_elevation_alignment_chained():
+    units = [
+        {
+            "id": "A",
+            "size": (40, 40),
+            "position": (0, 0),
+            "type": "StreamFlag",
+            "ports": {"Out": (1.0, 0.5)},
+        },
+        {
+            "id": "B",
+            "size": (30, 30),
+            "position": (0, 0),
+            "type": "Pump",
+            "ports": {"In": (0.0, 0.5), "Out": (1.0, 0.5)},
+        },
+        {
+            "id": "C",
+            "size": (50, 50),
+            "position": (0, 0),
+            "type": "Vessel",
+            "ports": {"In": (0.0, 0.5)},
+        },
+    ]
+    streams = [("S1", "A", "B"), ("S2", "B", "C")]
+    solver = MacroLayoutSolver(units=units, streams=streams, origin=(50, 100))
+    positions = solver.solve()
+
+    assert positions["A"][1] == 100.0
+    assert positions["B"][1] == 105.0
+    assert positions["C"][1] == 95.0
+
+
+def test_port_elevation_alignment_multiport_conflict():
+    units = [
+        {
+            "id": "Feed",
+            "size": (40, 40),
+            "position": (0, 0),
+            "type": "StreamFlag",
+            "ports": {"Out": (1.0, 0.5)},
+        },
+        {
+            "id": "Additive",
+            "size": (40, 40),
+            "position": (0, 0),
+            "type": "StreamFlag",
+            "ports": {"Out": (1.0, 0.5)},
+        },
+        {
+            "id": "Mixer",
+            "size": (60, 60),
+            "position": (0, 0),
+            "type": "Mixer",
+            "ports": {
+                "In1": {"rel_pos": (0.0, 0.5), "normal": (-1.0, 0.0), "intent": "in"},
+                "In2": {"rel_pos": (0.0, 0.8), "normal": (-1.0, 0.0), "intent": "in"},
+            },
+        },
+    ]
+    streams = [
+        ("S1", "Feed", "Mixer", "Out", "In1"),
+        ("S2", "Additive", "Mixer", "Out", "In2"),
+    ]
+    solver = MacroLayoutSolver(units=units, streams=streams, origin=(50, 100))
+    positions = solver.solve()
+
+    assert positions["Mixer"][1] == 90.0
+
+
+
