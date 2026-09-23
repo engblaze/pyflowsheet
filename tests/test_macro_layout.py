@@ -180,3 +180,50 @@ def test_macro_solver_explicit_none_size_and_offset():
     assert positions["TARGET"] == (100.0, 100.0)
     # Default target size (40, 40) + default offset 60.0 -> 100 + 40 + 60 = 200.0
     assert positions["DEP"] == (200.0, 100.0)
+
+
+def test_inline_train_compaction():
+    # Chain: Feed -> P1 -> CKV1 -> FCV1 -> Tank
+    units = [
+        {"id": "Feed", "size": (40, 40), "position": (0, 0), "type": "StreamFlag"},
+        {"id": "P1", "size": (30, 30), "position": (0, 0), "type": "Pump"},
+        {"id": "CKV1", "size": (18, 10), "position": (0, 0), "type": "CheckValve"},
+        {"id": "FCV1", "size": (24, 16), "position": (0, 0), "type": "ControlValve"},
+        {"id": "Tank", "size": (60, 90), "position": (0, 0), "type": "Vessel"},
+    ]
+    streams = [
+        ("S1", "Feed", "P1"),
+        ("S2", "P1", "CKV1"),
+        ("S3", "CKV1", "FCV1"),
+        ("S4", "FCV1", "Tank"),
+    ]
+    solver = MacroLayoutSolver(units=units, streams=streams, origin=(50, 100), bay_width=160.0)
+    positions = solver.solve()
+
+    # The entire span from Feed to Tank should be compacted (< 350px), not 4 full 160px bays (640px)
+    feed_x = positions["Feed"][0]
+    tank_x = positions["Tank"][0]
+    assert (tank_x - feed_x) <= 350.0
+
+
+def test_full_recycle_chain_placed_in_reverse_order():
+    # Loop: Mixer -> NF -> PCV -> CKV -> Mixer
+    units = [
+        {"id": "Mixer", "size": (60, 90), "position": (0, 0), "type": "Vessel"},
+        {"id": "NF", "size": (60, 40), "position": (0, 0), "type": "MembraneModule"},
+        {"id": "PCV", "size": (24, 16), "position": (0, 0), "type": "ControlValve"},
+        {"id": "CKV", "size": (18, 10), "position": (0, 0), "type": "CheckValve"},
+    ]
+    streams = [
+        ("S1", "Mixer", "NF"),
+        ("S2", "NF", "PCV"),
+        ("S3", "PCV", "CKV"),
+        ("S4", "CKV", "Mixer"),
+    ]
+    solver = MacroLayoutSolver(units=units, streams=streams, origin=(50, 100), bay_width=160.0)
+    positions = solver.solve()
+
+    # PCV and CKV should be below the process line and flow right-to-left towards Mixer
+    assert positions["PCV"][1] > positions["NF"][1]
+    assert positions["CKV"][0] < positions["PCV"][0]
+

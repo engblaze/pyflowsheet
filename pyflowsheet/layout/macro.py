@@ -3,18 +3,62 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any
 
+INLINE_TYPE_KEYWORDS = {
+    "valve",
+    "tee",
+    "sample",
+    "pump",
+    "blower",
+    "compressor",
+}
+
+
+def is_inline_type(u_type: str | None) -> bool:
+    """Returns True if the given unit operation type name represents an inline component."""
+    if not u_type:
+        return False
+    t = str(u_type).lower().strip()
+    return any(k in t for k in INLINE_TYPE_KEYWORDS)
+
 
 class FlowsheetGraph:
     """Represents the equipment connectivity network to extract a DAG, detect cycles
     (recycle streams), and compute topological stage ranks.
     """
 
-    def __init__(self, unit_ids: list[str], streams: list[tuple[str, str, str]]):
+    def __init__(
+        self,
+        unit_ids: list[str] | list[dict[str, Any]],
+        streams: list[tuple[str, str, str]],
+        unit_types: dict[str, str] | None = None,
+        primary_units: set[str] | None = None,
+    ):
         """Args:
-        unit_ids: List of unique unit operation IDs.
+        unit_ids: List of unique unit operation IDs or unit dicts.
         streams: List of tuples `(stream_id, from_unit_id, to_unit_id)`.
+        unit_types: Optional mapping of unit ID to equipment type name.
+        primary_units: Optional set of unit IDs that are primary process units.
         """
-        self.unit_ids = list(unit_ids)
+        if unit_ids and isinstance(unit_ids[0], dict):
+            raw_units: list[dict[str, Any]] = unit_ids  # type: ignore[assignment]
+            self.unit_ids = [u["id"] for u in raw_units]
+            if not unit_types:
+                self.unit_types = {u["id"]: str(u.get("type") or "") for u in raw_units}
+            else:
+                self.unit_types = dict(unit_types)
+        else:
+            self.unit_ids = list(unit_ids)  # type: ignore[arg-type]
+            self.unit_types = dict(unit_types) if unit_types else {}
+
+        if primary_units is not None:
+            self.primary_units = set(primary_units)
+        elif self.unit_types:
+            self.primary_units = {
+                uid for uid in self.unit_ids if not is_inline_type(self.unit_types.get(uid))
+            }
+        else:
+            self.primary_units = set(self.unit_ids)
+
         self.raw_streams = list(streams)
 
         # Adjacency
@@ -26,27 +70,94 @@ class FlowsheetGraph:
                 self.rev_adj[u_to].append((u_from, s_id))
 
         self.recycle_streams: set[str] = set()
+        self.recycle_units: set[str] = set()
+        self.recycle_chains: list[dict[str, Any]] = []
         self.forward_edges: list[tuple[str, str, str]] = []
         self._detect_cycles_and_extract_dag()
 
     def _detect_cycles_and_extract_dag(self) -> None:
-        """DFS traversal identifying back-edges (cycles/recycle loops) and extracting the DAG."""
+        """DFS traversal identifying back-edges (cycles/recycle loops), extracting full
+        feedback paths, tagging recycle units, and extracting the DAG.
+        """
         # 0 = unvisited, 1 = visiting (in recursion stack), 2 = visited
         color: dict[str, int] = {u: 0 for u in self.unit_ids}
+        back_edges: list[tuple[str, str, str]] = []
 
         def dfs(node: str) -> None:
             color[node] = 1
             for nxt, s_id in self.adj.get(node, []):
                 if color[nxt] == 1:
                     # Back edge detected -> Recycle stream!
-                    self.recycle_streams.add(s_id)
+                    back_edges.append((s_id, node, nxt))
                 elif color[nxt] == 0:
                     dfs(nxt)
             color[node] = 2
 
-        for unit in self.unit_ids:
+        # Start DFS from source nodes (in_degree == 0) first for deterministic forward traversal
+        in_deg: dict[str, int] = {u: 0 for u in self.unit_ids}
+        for _, u_from, u_to in self.raw_streams:
+            if u_from in in_deg and u_to in in_deg:
+                in_deg[u_to] += 1
+
+        ordered_units = sorted(self.unit_ids, key=lambda u: in_deg.get(u, 0))
+        for unit in ordered_units:
             if color[unit] == 0:
                 dfs(unit)
+
+        self.recycle_units = set()
+        self.recycle_chains = []
+
+        # Trace full recycle paths from each back-edge
+        for s_id, u_from, u_to in back_edges:
+            self.recycle_streams.add(s_id)
+            target = u_to
+            chain: list[str] = []
+            chain_streams = [s_id]
+
+            if u_from not in self.primary_units:
+                self.recycle_units.add(u_from)
+                chain.append(u_from)
+                curr = u_from
+                visited = {u_from, target}
+                source_primary = None
+
+                while True:
+                    preds = [p for p in self.rev_adj.get(curr, []) if p[0] not in visited]
+                    if not preds:
+                        preds = [p for p in self.rev_adj.get(curr, []) if p[0] != curr]
+                    if not preds:
+                        break
+
+                    pred_unit, in_s_id = preds[0]
+                    self.recycle_streams.add(in_s_id)
+                    chain_streams.append(in_s_id)
+
+                    if pred_unit in self.primary_units:
+                        source_primary = pred_unit
+                        break
+                    else:
+                        self.recycle_units.add(pred_unit)
+                        chain.append(pred_unit)
+                        visited.add(pred_unit)
+                        curr = pred_unit
+
+                self.recycle_chains.append(
+                    {
+                        "source": source_primary,
+                        "target": target,
+                        "units": list(reversed(chain)),
+                        "streams": chain_streams,
+                    }
+                )
+            else:
+                self.recycle_chains.append(
+                    {
+                        "source": u_from,
+                        "target": target,
+                        "units": [],
+                        "streams": chain_streams,
+                    }
+                )
 
         for s_id, u_from, u_to in self.raw_streams:
             if (
@@ -101,7 +212,7 @@ class FlowsheetGraph:
 class MacroLayoutSolver:
     """Computes 2D placement coordinates for equipment using topological stages,
     PlantUML-style layout hints (stage, relative_to, align, flow_direction),
-    and manual position overrides.
+    inline train compaction, and reverse-corridor recycle placement.
     """
 
     def __init__(
@@ -122,7 +233,31 @@ class MacroLayoutSolver:
         self.recycle_corridors: dict[str, str] = {}
 
         unit_ids = list(self.units.keys())
-        self.graph = FlowsheetGraph(unit_ids, self.streams)
+        unit_types = {uid: self._get_unit_type(u) for uid, u in self.units.items()}
+        primary_units = {uid for uid in unit_ids if not self._is_inline_unit(self.units[uid])}
+        self.graph = FlowsheetGraph(
+            unit_ids,
+            self.streams,
+            unit_types=unit_types,
+            primary_units=primary_units,
+        )
+
+    @staticmethod
+    def _get_unit_type(u_data: dict[str, Any]) -> str:
+        u_type = u_data.get("type")
+        if u_type:
+            return str(u_type)
+        u_obj = u_data.get("unit")
+        if u_obj:
+            return str(getattr(u_obj, "type", u_obj.__class__.__name__))
+        return ""
+
+    @classmethod
+    def _is_inline_unit(cls, u_data: dict[str, Any]) -> bool:
+        t = cls._get_unit_type(u_data).lower().strip()
+        if not t:
+            return False
+        return any(k in t for k in INLINE_TYPE_KEYWORDS)
 
     def get_recycle_corridors(self) -> dict[str, str]:
         """Returns mapping of recycle stream ID to corridor assignment ('top' or 'bottom')."""
@@ -132,7 +267,7 @@ class MacroLayoutSolver:
         """Executes layout solving and returns dictionary mapping unit ID to (x, y)."""
         positions: dict[str, tuple[float, float]] = {}
 
-        # 1. Collect manual fixed positions
+        # 1. Collect manual fixed positions and manual stages
         fixed_units: set[str] = set()
         manual_stages: dict[str, int] = {}
         for uid, u in self.units.items():
@@ -150,34 +285,339 @@ class MacroLayoutSolver:
                 if st is not None:
                     manual_stages[uid] = int(st)
 
-        # 2. Compute topological stages
-        stages = self.graph.compute_stages(manual_stages)
+        # 2. Identify primary, inline, and recycle units
+        primary_units = set(self.graph.primary_units)
+        recycle_units = set(self.graph.recycle_units)
 
-        # Group non-fixed units by stage
-        bays: dict[int, list[str]] = defaultdict(list)
-        for uid in self.units:
+        # 3. Trace forward primary graph and inline chains between primary units
+        forward_adj: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        for s_id, u_from, u_to in self.graph.forward_edges:
+            forward_adj[u_from].append((u_to, s_id))
+
+        primary_adj: dict[str, list[str]] = defaultdict(list)
+        primary_in_deg: dict[str, int] = {u: 0 for u in primary_units}
+        # inline_chains: list of (from_primary, to_primary_or_empty, chain_units)
+        inline_chains: list[tuple[str, str, list[str]]] = []
+
+        for p_u in primary_units:
+            for nxt, _ in forward_adj.get(p_u, []):
+                if nxt in recycle_units:
+                    continue
+                if nxt in primary_units:
+                    primary_adj[p_u].append(nxt)
+                    primary_in_deg[nxt] += 1
+                    inline_chains.append((p_u, nxt, []))
+                else:
+                    chain = [nxt]
+                    curr = nxt
+                    visited_inline = {nxt}
+                    found_primary = None
+                    while True:
+                        successors = [
+                            s[0]
+                            for s in forward_adj.get(curr, [])
+                            if s[0] not in visited_inline and s[0] not in recycle_units
+                        ]
+                        if not successors:
+                            break
+                        succ = successors[0]
+                        if succ in primary_units:
+                            found_primary = succ
+                            break
+                        else:
+                            chain.append(succ)
+                            visited_inline.add(succ)
+                            curr = succ
+                    if found_primary:
+                        primary_adj[p_u].append(found_primary)
+                        primary_in_deg[found_primary] += 1
+                        inline_chains.append((p_u, found_primary, chain))
+                    else:
+                        inline_chains.append((p_u, "", chain))
+
+        # 4. Compute primary topological stages
+        q = deque([u for u in primary_units if primary_in_deg.get(u, 0) == 0])
+        topo_order = []
+        in_deg_copy = dict(primary_in_deg)
+        while q:
+            curr = q.popleft()
+            topo_order.append(curr)
+            for nxt in primary_adj.get(curr, []):
+                in_deg_copy[nxt] -= 1
+                if in_deg_copy[nxt] == 0:
+                    q.append(nxt)
+
+        for u in primary_units:
+            if u not in topo_order:
+                topo_order.append(u)
+
+        primary_stages: dict[str, int] = {u: manual_stages.get(u, 0) for u in primary_units}
+        for u in topo_order:
+            curr_stage = primary_stages[u]
+            for nxt in primary_adj.get(u, []):
+                exp_nxt = curr_stage + 1
+                if nxt in manual_stages:
+                    primary_stages[nxt] = max(primary_stages[nxt], manual_stages[nxt])
+                else:
+                    primary_stages[nxt] = max(primary_stages[nxt], exp_nxt)
+
+        # 5. Compute stage coordinates and assign positions to primary units
+        max_stage = max(primary_stages.values()) if primary_stages else 0
+        stage_coords: dict[int, float] = {
+            0: self.origin[1] if self.flow_direction == "down" else self.origin[0]
+        }
+
+        for s in range(max_stage + 1):
+            curr_coord = stage_coords.get(
+                s,
+                (self.origin[1] + s * self.bay_height)
+                if self.flow_direction == "down"
+                else (self.origin[0] + s * self.bay_width),
+            )
+            max_step_span = self.bay_height if self.flow_direction == "down" else self.bay_width
+            for p_from, p_to, chain in inline_chains:
+                if p_to and primary_stages.get(p_from) == s and primary_stages.get(p_to) == s + 1:
+                    if chain:
+                        k = len(chain)
+                        sz_from = self.units[p_from].get("size")
+                        if self.flow_direction == "down":
+                            h_from = float(sz_from[1]) if sz_from is not None else 40.0
+                            h_inline = sum(
+                                float(self.units[u].get("size")[1])
+                                if self.units[u].get("size") is not None
+                                else 40.0
+                                for u in chain
+                            )
+                            span_needed = h_from + 40.0 + (k + 1) * 35.0 + h_inline
+                        else:
+                            w_from = float(sz_from[0]) if sz_from is not None else 40.0
+                            w_inline = sum(
+                                float(self.units[u].get("size")[0])
+                                if self.units[u].get("size") is not None
+                                else 40.0
+                                for u in chain
+                            )
+                            span_needed = w_from + 40.0 + (k + 1) * 35.0 + w_inline
+                        max_step_span = max(max_step_span, span_needed)
+            stage_coords[s + 1] = max(stage_coords.get(s + 1, 0.0), curr_coord + max_step_span)
+
+        primary_bays: dict[int, list[str]] = defaultdict(list)
+        for uid in primary_units:
             if uid not in fixed_units:
-                bays[stages[uid]].append(uid)
+                primary_bays[primary_stages[uid]].append(uid)
 
-        # 3. Assign default bay coordinates
-        for stage_idx, bay_units in sorted(bays.items()):
+        for stage_idx, bay_units in sorted(primary_bays.items()):
             if self.flow_direction == "down":
-                y = self.origin[1] + stage_idx * self.bay_height
+                y = stage_coords[stage_idx]
                 for idx, uid in enumerate(bay_units):
                     x = self.origin[0] + idx * self.bay_width
                     positions[uid] = (x, y)
             elif self.flow_direction == "left":
-                x = self.origin[0] - stage_idx * self.bay_width
+                x = self.origin[0] - (stage_coords[stage_idx] - self.origin[0])
                 for idx, uid in enumerate(bay_units):
                     y = self.origin[1] + idx * self.bay_height
                     positions[uid] = (x, y)
-            else:  # "right" (default)
-                x = self.origin[0] + stage_idx * self.bay_width
+            else:  # "right"
+                x = stage_coords[stage_idx]
                 for idx, uid in enumerate(bay_units):
                     y = self.origin[1] + idx * self.bay_height
                     positions[uid] = (x, y)
 
-        # 4. Resolve relative_to and align hints with convergence loop
+        # 6. Position inline units along spans between primary units
+        for p_from, p_to, chain in inline_chains:
+            if not chain:
+                continue
+            if p_from not in positions:
+                continue
+            pos_from = positions[p_from]
+            sz_from = self.units[p_from].get("size")
+            w_from = float(sz_from[0]) if sz_from is not None else 40.0
+            h_from = float(sz_from[1]) if sz_from is not None else 40.0
+
+            if p_to and p_to in positions:
+                pos_to = positions[p_to]
+                if self.flow_direction == "down":
+                    start_y = pos_from[1] + h_from + 20.0
+                    end_y = pos_to[1] - 20.0
+                    avail = max(0.0, end_y - start_y)
+                    total_h = sum(
+                        float(self.units[u].get("size")[1])
+                        if self.units[u].get("size") is not None
+                        else 40.0
+                        for u in chain
+                    )
+                    k = len(chain)
+                    gap = (avail - total_h) / (k + 1) if avail > total_h else 35.0
+                    curr_y = start_y + gap
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                            positions[u] = (pos_from[0], curr_y)
+                            curr_y += u_h + gap
+                elif self.flow_direction == "left":
+                    start_x = pos_from[0] - 20.0
+                    sz_to = self.units[p_to].get("size")
+                    w_to = float(sz_to[0]) if sz_to is not None else 40.0
+                    end_x = pos_to[0] + w_to + 20.0
+                    avail = max(0.0, start_x - end_x)
+                    total_w = sum(
+                        float(self.units[u].get("size")[0])
+                        if self.units[u].get("size") is not None
+                        else 40.0
+                        for u in chain
+                    )
+                    k = len(chain)
+                    gap = (avail - total_w) / (k + 1) if avail > total_w else 35.0
+                    curr_x = start_x - gap
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                            positions[u] = (curr_x - u_w, pos_from[1])
+                            curr_x -= u_w + gap
+                else:  # "right"
+                    start_x = pos_from[0] + w_from + 20.0
+                    end_x = pos_to[0] - 20.0
+                    avail = max(0.0, end_x - start_x)
+                    total_w = sum(
+                        float(self.units[u].get("size")[0])
+                        if self.units[u].get("size") is not None
+                        else 40.0
+                        for u in chain
+                    )
+                    k = len(chain)
+                    gap = (avail - total_w) / (k + 1) if avail > total_w else 35.0
+                    curr_x = start_x + gap
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                            positions[u] = (curr_x, pos_from[1])
+                            curr_x += u_w + gap
+            else:
+                # Terminal inline chain without downstream primary unit
+                if self.flow_direction == "down":
+                    curr_y = pos_from[1] + h_from + 35.0
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                            positions[u] = (pos_from[0], curr_y)
+                            curr_y += u_h + 35.0
+                elif self.flow_direction == "left":
+                    curr_x = pos_from[0] - 35.0
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                            positions[u] = (curr_x - u_w, pos_from[1])
+                            curr_x -= u_w + 35.0
+                else:  # "right"
+                    curr_x = pos_from[0] + w_from + 35.0
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                            positions[u] = (curr_x, pos_from[1])
+                            curr_x += u_w + 35.0
+
+        # 7. Allocate corridors and position recycle units
+        self.recycle_corridors = {}
+        for c_idx, chain_info in enumerate(self.graph.recycle_chains):
+            chain_corridor = "bottom" if c_idx % 2 == 0 else "top"
+            for s_id in chain_info.get("streams", []):
+                self.recycle_corridors[s_id] = chain_corridor
+
+            chain_units = [u for u in chain_info.get("units", []) if u not in fixed_units]
+            if not chain_units:
+                continue
+
+            source = chain_info.get("source")
+            target = chain_info.get("target")
+
+            if source and source in positions:
+                src_pos = positions[source]
+            else:
+                max_x = max(
+                    (p[0] for uid, p in positions.items() if uid not in recycle_units),
+                    default=self.origin[0],
+                )
+                src_pos = (max_x, self.origin[1])
+
+            if target and target in positions:
+                tgt_pos = positions[target]
+            else:
+                min_x = min(
+                    (p[0] for uid, p in positions.items() if uid not in recycle_units),
+                    default=self.origin[0],
+                )
+                tgt_pos = (min_x, self.origin[1])
+
+            if self.flow_direction == "down":
+                corridor_offset = 60.0
+                max_process_x = max(
+                    (
+                        p[0]
+                        + (
+                            float(self.units[uid].get("size")[0])
+                            if self.units[uid].get("size") is not None
+                            else 40.0
+                        )
+                        for uid, p in positions.items()
+                        if uid not in recycle_units
+                    ),
+                    default=self.origin[0],
+                )
+                corr_x = max_process_x + corridor_offset
+                k = len(chain_units)
+                for idx, u in enumerate(chain_units):
+                    frac = (idx + 1) / (k + 1)
+                    y = src_pos[1] + frac * (tgt_pos[1] - src_pos[1])
+                    positions[u] = (corr_x, y)
+            else:
+                corridor_offset = 60.0
+                if chain_corridor == "bottom":
+                    max_process_y = max(
+                        (
+                            p[1]
+                            + (
+                                float(self.units[uid].get("size")[1])
+                                if self.units[uid].get("size") is not None
+                                else 40.0
+                            )
+                            for uid, p in positions.items()
+                            if uid not in recycle_units
+                        ),
+                        default=self.origin[1],
+                    )
+                    corr_y = max_process_y + corridor_offset
+                else:
+                    min_process_y = min(
+                        (p[1] for uid, p in positions.items() if uid not in recycle_units),
+                        default=self.origin[1],
+                    )
+                    corr_y = min_process_y - corridor_offset - 40.0
+
+                k = len(chain_units)
+                for idx, u in enumerate(chain_units):
+                    frac = (idx + 1) / (k + 1)
+                    x = src_pos[0] + frac * (tgt_pos[0] - src_pos[0])
+                    positions[u] = (x, corr_y)
+
+        # Allocate corridors for any unassigned recycle streams
+        for idx, s_id in enumerate(sorted(self.graph.recycle_streams)):
+            if s_id not in self.recycle_corridors:
+                self.recycle_corridors[s_id] = "bottom" if idx % 2 == 0 else "top"
+
+        # Fallback for any unplaced units
+        stages_fallback = self.graph.compute_stages()
+        for uid in self.units:
+            if uid not in positions:
+                st = stages_fallback.get(uid, 0)
+                positions[uid] = (self.origin[0] + st * self.bay_width, self.origin[1])
+
+        # 8. Resolve relative_to and align hints with convergence loop
         num_units = max(1, len(self.units))
         for _ in range(num_units):
             changed = False
@@ -251,10 +691,5 @@ class MacroLayoutSolver:
 
             if not changed:
                 break
-
-        # 5. Allocate recycle corridors for recycle streams
-        self.recycle_corridors = {}
-        for idx, s_id in enumerate(sorted(self.graph.recycle_streams)):
-            self.recycle_corridors[s_id] = "top" if idx % 2 == 0 else "bottom"
 
         return positions
