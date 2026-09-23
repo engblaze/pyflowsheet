@@ -1,0 +1,463 @@
+# ==============================================================================
+# Process Flow Diagram & P&ID Specification: Water Treatment with IONP Recovery
+# Fully compliant with Pyflowsheet v0.6.0 Schema (ISO 10628 & ANSI/ISA-5.1)
+# ==============================================================================
+
+schema_version: "1.0"
+
+metadata:
+  id: "WATER_TREATMENT_PID"
+  name: "Water Treatment with IONP Recovery P&ID"
+  description: "Continuous catalytic water purification flowsheet with magnetic iron oxide nanoparticle (IONP) recycling, DAF flotation, AOP regeneration, and nanofiltration."
+
+equipment:
+  # ----------------------------------------------------------------------------
+  # 1. Primary Process Units (ISO 10628 Vessels, Flotation, Membrane)
+  # ----------------------------------------------------------------------------
+  - id: Mixer
+    name: "Stirred Tank Mixer"
+    type: "Vessel"
+    description: "Continuous stirred flocculation & adsorption vessel"
+    head_type: "dished"
+    position: [240, 200]
+    size: [60, 90]
+    internals:
+      - type: "Stirrer"
+    ports:
+      - id: "In1"
+        position: [0.0, 0.5]
+        normal: [-1, 0]
+        intent: "in"
+      - id: "In2"
+        position: [0.5, 0.0]
+        normal: [0, -1]
+        intent: "in"
+      - id: "In3"
+        position: [0.5, 1.0]
+        normal: [0, 1]
+        intent: "in"
+      - id: "Out"
+        position: [1.0, 0.7]
+        normal: [1, 0]
+        intent: "out"
+
+  - id: DAF
+    name: "Flotation Separator"
+    type: "FlotationCell"
+    description: "Dissolved air flotation separator for loaded IONP flocs"
+    position: [440, 210]
+    size: [70, 70]
+
+  - id: UV_US
+    name: "UV/US Reactor"
+    type: "Vessel"
+    description: "Sonophotochemical AOP regeneration reactor"
+    head_type: "flat"
+    position: [640, 85]
+    size: [50, 95]
+    internals:
+      - type: "Tubes"
+
+  - id: NF
+    name: "Nanofiltration Module"
+    type: "MembraneModule"
+    description: "Crossflow nanofiltration membrane module"
+    position: [640, 320]
+    size: [60, 40]
+
+  # ----------------------------------------------------------------------------
+  # 2. Process Boundaries / Stream Flags
+  # ----------------------------------------------------------------------------
+  - id: Wastewater
+    name: "Raw Wastewater"
+    type: "StreamFlag"
+    position: [30, 235]
+    size: [40, 40]
+
+  - id: IONP_Makeup
+    name: "IONP Makeup"
+    type: "StreamFlag"
+    position: [250, 40]
+    size: [40, 40]
+    rotation: 90
+
+  - id: Recovered_IONP
+    name: "Recovered IONP"
+    type: "StreamFlag"
+    position: [820, 110]
+    size: [40, 40]
+
+  - id: Treated_Water
+    name: "Treated Water"
+    type: "StreamFlag"
+    position: [820, 320]
+    size: [40, 40]
+
+  # ----------------------------------------------------------------------------
+  # 3. Motive Equipment (ISO 10628 Pumps)
+  # ----------------------------------------------------------------------------
+  - id: P-101
+    name: "Influent Feed Pump"
+    type: "Pump"
+    position: [85, 240]
+    size: [30, 30]
+
+  - id: P-102
+    name: "IONP Dosing Pump"
+    type: "ProgressiveCavityPump"
+    position: [250, 120]
+    size: [40, 25]
+
+  - id: P-103
+    name: "Slurry Transfer Pump"
+    type: "Pump"
+    position: [340, 250]
+    size: [30, 30]
+
+  - id: P-105
+    name: "Float Sludge Pump"
+    type: "ProgressiveCavityPump"
+    position: [550, 130]
+    size: [40, 25]
+
+  - id: P-106
+    name: "NF Booster Pump"
+    type: "Pump"
+    position: [550, 325]
+    size: [30, 30]
+
+  - id: P-107
+    name: "Regenerated IONP Pump"
+    type: "Pump"
+    position: [730, 115]
+    size: [30, 30]
+
+  # ----------------------------------------------------------------------------
+  # 4. Control & Isolation Valves (ISO 10628 / ANSI/ISA-5.1)
+  # ----------------------------------------------------------------------------
+  - id: CKV-101
+    name: "Influent Check Valve"
+    type: "CheckValve"
+    position: [125, 249]
+    size: [18, 10]
+
+  - id: FCV-101
+    name: "Influent Flow Control Valve"
+    type: "ControlValve"
+    valve_type: "globe"
+    actuator: "pneumatic"
+    failure_mode: "fail_closed"
+    position: [155, 246]
+    size: [24, 16]
+
+  - id: V-SMP-01
+    name: "Influent Sample Point"
+    type: "GrabSamplingTee"
+    position: [195, 248]
+    size: [14, 14]
+
+  - id: V-SMP-02
+    name: "Slurry Sample Point"
+    type: "GrabSamplingTee"
+    position: [390, 258]
+    size: [14, 14]
+
+  - id: V-SMP-03
+    name: "Sludge Sample Point"
+    type: "GrabSamplingTee"
+    position: [605, 137]
+    size: [14, 14]
+
+  - id: PSV-101
+    name: "Membrane Relief Valve"
+    type: "SafetyReliefValve"
+    position: [600, 275]
+    size: [22, 22]
+
+  - id: CKV-102
+    name: "Permeate Check Valve"
+    type: "CheckValve"
+    position: [740, 325]
+    size: [18, 10]
+
+  - id: V-SMP-06
+    name: "Permeate Sample Point"
+    type: "GrabSamplingTee"
+    position: [775, 325]
+    size: [14, 14]
+
+  - id: PCV-101
+    name: "Retentate Control Valve"
+    type: "ControlValve"
+    valve_type: "needle"
+    actuator: "electric"
+    failure_mode: "fail_open"
+    position: [520, 420]
+    size: [24, 16]
+
+  - id: CKV-103
+    name: "Retentate Check Valve"
+    type: "CheckValve"
+    position: [380, 420]
+    size: [18, 10]
+
+  - id: CKV-104
+    name: "IONP Recycle Check Valve"
+    type: "CheckValve"
+    position: [480, 50]
+    size: [18, 10]
+
+  # ----------------------------------------------------------------------------
+  # 5. Process Instrumentation & Transmitters (ANSI/ISA-5.1)
+  # ----------------------------------------------------------------------------
+  - id: FIT-101
+    name: "Influent Flow Transmitter"
+    type: "Instrument"
+    tag: "FIT-101"
+    balloon_type: "discrete"
+    location: "field"
+    position: [145, 175]
+    size: [24, 24]
+
+  - id: AIT-101
+    name: "Feed pH Transmitter"
+    type: "Instrument"
+    tag: "AIT-101"
+    balloon_type: "discrete"
+    location: "field"
+    position: [105, 175]
+    size: [24, 24]
+
+  - id: LIT-101
+    name: "Mixer Level Transmitter"
+    type: "Instrument"
+    tag: "LIT-101"
+    balloon_type: "discrete"
+    location: "control_room"
+    position: [210, 130]
+    size: [24, 24]
+
+  - id: FIT-102
+    name: "IONP Dosing Flow Transmitter"
+    type: "Instrument"
+    tag: "FIT-102"
+    balloon_type: "discrete"
+    location: "field"
+    position: [290, 125]
+    size: [24, 24]
+
+  - id: LIT-102
+    name: "DAF Level Transmitter"
+    type: "Instrument"
+    tag: "LIT-102"
+    balloon_type: "discrete"
+    location: "control_room"
+    position: [465, 150]
+    size: [24, 24]
+
+  - id: AIT-103
+    name: "Sludge Concentration Sensor"
+    type: "Instrument"
+    tag: "AIT-103"
+    balloon_type: "discrete"
+    location: "field"
+    position: [500, 90]
+    size: [24, 24]
+
+  - id: PIT-101
+    name: "NF Feed Pressure Transmitter"
+    type: "Instrument"
+    tag: "PIT-101"
+    balloon_type: "discrete"
+    location: "control_room"
+    position: [520, 275]
+    size: [24, 24]
+
+  - id: PDIT-101
+    name: "Membrane Differential Pressure"
+    type: "Instrument"
+    tag: "PDIT-101"
+    balloon_type: "shared_display"
+    location: "control_room"
+    position: [650, 420]
+    size: [24, 24]
+
+  - id: FIT-106
+    name: "Permeate Flow Transmitter"
+    type: "Instrument"
+    tag: "FIT-106"
+    balloon_type: "discrete"
+    location: "field"
+    position: [700, 260]
+    size: [24, 24]
+
+  - id: TT-101
+    name: "Reactor Temperature Transmitter"
+    type: "Instrument"
+    tag: "TT-101"
+    balloon_type: "discrete"
+    location: "control_room"
+    position: [590, 40]
+    size: [24, 24]
+
+  - id: FIT-108
+    name: "Recycle Flow Transmitter"
+    type: "Instrument"
+    tag: "FIT-108"
+    balloon_type: "discrete"
+    location: "field"
+    position: [740, 40]
+    size: [24, 24]
+
+# ------------------------------------------------------------------------------
+# Process & Signal Streams
+# ------------------------------------------------------------------------------
+streams:
+  # Influent line
+  - id: S01_1
+    from: Wastewater:Out
+    to: P-101:In
+    line_type: process
+
+  - id: S01_2
+    from: P-101:Out
+    to: CKV-101:In
+    line_type: process
+
+  - id: S01_3
+    from: CKV-101:Out
+    to: FCV-101:In
+    line_type: process
+
+  - id: S01_4
+    from: FCV-101:Out
+    to: V-SMP-01:In
+    line_type: process
+
+  - id: S01_5
+    from: V-SMP-01:Out
+    to: Mixer:In1
+    line_type: process
+
+  # IONP feed line
+  - id: S09_1
+    from: IONP_Makeup:Out
+    to: P-102:In
+    line_type: process
+
+  - id: S09_2
+    from: P-102:Out
+    to: Mixer:In2
+    line_type: process
+
+  # Floc slurry line
+  - id: S02_1
+    from: Mixer:Out
+    to: P-103:In
+    line_type: process
+
+  - id: S02_2
+    from: P-103:Out
+    to: V-SMP-02:In
+    line_type: process
+
+  - id: S02_3
+    from: V-SMP-02:Out
+    to: DAF:Feed
+    line_type: process
+
+  # Flotation scum to UV/US
+  - id: S03_1
+    from: DAF:Float
+    to: P-105:In
+    line_type: process
+
+  - id: S03_2
+    from: P-105:Out
+    to: V-SMP-03:In
+    line_type: process
+
+  - id: S03_3
+    from: V-SMP-03:Out
+    to: UV_US:In
+    line_type: process
+
+  # Clarified water to NF
+  - id: S04_1
+    from: DAF:Effluent
+    to: P-106:In
+    line_type: process
+
+  - id: S04_2
+    from: P-106:Out
+    to: NF:Feed
+    line_type: process
+
+  - id: S04_REL
+    from: NF:Feed
+    to: PSV-101:In
+    line_type: process
+
+  # Permeate product line
+  - id: S06_1
+    from: NF:Permeate
+    to: CKV-102:In
+    line_type: process
+
+  - id: S06_2
+    from: CKV-102:Out
+    to: V-SMP-06:In
+    line_type: process
+
+  - id: S06_3
+    from: V-SMP-06:Out
+    to: Treated_Water:In
+    line_type: process
+
+  # Retentate recycle line
+  - id: S05_1
+    from: NF:Retentate
+    to: PCV-101:In
+    line_type: process
+
+  - id: S05_2
+    from: PCV-101:Out
+    to: CKV-103:In
+    line_type: process
+
+  - id: S05_3
+    from: CKV-103:Out
+    to: Mixer:In3
+    line_type: process
+
+  # Regenerated IONP to recovery & recycle
+  - id: S07_1
+    from: UV_US:Out
+    to: P-107:In
+    line_type: process
+
+  - id: S07_2
+    from: P-107:Out
+    to: Recovered_IONP:In
+    line_type: process
+
+  - id: S08_1
+    from: Recovered_IONP:Out
+    to: CKV-104:In
+    line_type: process
+
+  - id: S08_2
+    from: CKV-104:Out
+    to: IONP_Makeup:In
+    line_type: process
+
+  # ANSI/ISA-5.1 Signal Lines (Pneumatic & Electric)
+  - id: SIG_FCV101
+    from: FIT-101:Bottom
+    to: FCV-101:Actuator
+    line_type: pneumatic
+
+  - id: SIG_PCV101
+    from: PIT-101:Bottom
+    to: PCV-101:Actuator
+    line_type: electric
