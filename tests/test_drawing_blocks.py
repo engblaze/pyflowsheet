@@ -167,3 +167,17 @@ def test_general_notes_defaults(tmp_path):
     assert "GENERAL PROCESS NOTES &amp; SPECIFICATIONS" in content
     assert "ALL PROCESS PIPING SIZED FOR 100 M^3/HR NOMINAL LIQUID THROUGHPUT." in content
     assert "STANDARDS APPLICABLE: ANSI/ASME Y14.1" in content
+
+
+def test_general_notes_empty(tmp_path):
+    out_svg = tmp_path / "test_notes_empty.svg"
+    ctx = SvgContext(str(out_svg))
+    nb = GeneralNotes(notes=[])
+    nb.draw(ctx)
+    ctx.render(saveFile=True)
+
+    content = out_svg.read_text(encoding="utf-8")
+    assert 'id="drawing_notes"' in content
+    assert "GENERAL PROCESS NOTES &amp; SPECIFICATIONS" in content
+    assert "ALL PROCESS PIPING" not in content
+    assert nb.notes == []

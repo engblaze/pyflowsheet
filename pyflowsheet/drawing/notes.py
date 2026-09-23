@@ -11,7 +11,7 @@ class GeneralNotes:
     ):
         self.id = "drawing_notes"
         self.rect = rect
-        if notes:
+        if notes is not None:
             self.notes = list(notes)
         else:
             self.notes = [

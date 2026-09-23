@@ -15,6 +15,8 @@ def _normalize_dict(obj: Any) -> dict[str, Any]:
         return {}
     if hasattr(obj, "model_dump"):
         return obj.model_dump()
+    elif hasattr(obj, "dict"):
+        return obj.dict()
     if isinstance(obj, dict):
         return dict(obj)
     if hasattr(obj, "__dict__"):

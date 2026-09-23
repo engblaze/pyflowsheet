@@ -685,8 +685,7 @@ class Flowsheet:
 
         if df_settings is not None or has_drawing_meta:
             frame = DrawingFrame.from_metadata(schema.metadata, settings=df_settings)
-            if frame.enabled:
-                flowsheet.drawing_frame = frame
+            flowsheet.drawing_frame = frame
 
         return flowsheet
 

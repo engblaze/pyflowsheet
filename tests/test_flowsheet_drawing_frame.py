@@ -105,7 +105,9 @@ components:
 streams: []
 """
     pfd = Flowsheet.from_yaml(yaml_content)
-    assert pfd.drawing_frame is None or not pfd.drawing_frame.enabled
+    assert pfd.drawing_frame is not None
+    assert pfd.drawing_frame.enabled is False
+    assert pfd.drawing_frame.title_block._get("drawing_number") == "DWG-DISABLED"
 
 
 def test_flowsheet_from_yaml_boolean_disabled_frame(tmp_path):
@@ -122,7 +124,9 @@ components:
 streams: []
 """
     pfd = Flowsheet.from_yaml(yaml_content)
-    assert pfd.drawing_frame is None or not pfd.drawing_frame.enabled
+    assert pfd.drawing_frame is not None
+    assert pfd.drawing_frame.enabled is False
+    assert pfd.drawing_frame.title_block._get("drawing_number") == "DWG-BOOL-DISABLED"
 
     out_svg = tmp_path / "bool_disabled.svg"
     ctx = SvgContext(str(out_svg))

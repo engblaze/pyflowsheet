@@ -159,6 +159,37 @@ def test_drawing_frame_from_pydantic_schema():
     assert frame.notes_block.notes == ["Pydantic note"]
 
 
+def test_drawing_frame_pydantic_v1_fallback():
+    class MockV1Model:
+        def __init__(self, data: dict):
+            self._data = data
+
+        def dict(self):
+            return dict(self._data)
+
+    meta = MockV1Model(
+        {
+            "title": "V1 TITLE",
+            "drawing_number": "DWG-V1-99",
+            "sheet_size": "B",
+            "notes": ["V1 note"],
+        }
+    )
+    settings = MockV1Model(
+        {
+            "drawing_frame": {
+                "enabled": True,
+                "sheet_size": "B",
+            }
+        }
+    )
+    frame = DrawingFrame.from_metadata(meta, settings=settings)
+    assert frame.sheet_size == "B"
+    assert frame.enabled is True
+    assert frame.title_block._get("drawing_number") == "DWG-V1-99"
+    assert frame.notes_block.notes == ["V1 note"]
+
+
 def test_drawing_frame_dynamic_flowsheet(tmp_path):
     out_svg = tmp_path / "test_dynamic_frame.svg"
     ctx = SvgContext(str(out_svg))

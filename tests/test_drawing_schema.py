@@ -1,5 +1,4 @@
-import pytest
-from pyflowsheet.schema.models import (
+from pyflowsheet.schema import (
     DrawingFrameSettingsSchema,
     FlowsheetSchema,
     MetadataSchema,
@@ -40,6 +39,18 @@ def test_drawing_frame_settings_schema():
     )
     assert cfg.enabled is True
     assert cfg.sheet_size == "D"
+
+
+def test_drawing_frame_settings_schema_defaults():
+    cfg = DrawingFrameSettingsSchema()
+    assert cfg.enabled is True
+    assert cfg.sheet_size == "D"
+    assert cfg.show_border is True
+    assert cfg.show_title_block is True
+    assert cfg.show_revision_block is True
+    assert cfg.show_legend is True
+    assert cfg.show_notes is True
+    assert cfg.custom_legend_entries == []
 
 
 def test_flowsheet_schema_with_frame_settings():

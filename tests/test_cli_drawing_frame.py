@@ -134,3 +134,32 @@ def test_cli_help_includes_drawing_frame_options(capsys: pytest.CaptureFixture[s
     captured = capsys.readouterr()
     assert "--drawing-frame" in captured.out
     assert "--no-drawing-frame" in captured.out
+
+
+def test_cli_render_override_disabled_frame_preserves_metadata(tmp_path: Path):
+    yaml_file = tmp_path / "disabled_with_meta.yaml"
+    yaml_file.write_text(
+        """
+schema_version: "1.0"
+metadata:
+  id: "OVERRIDE_TEST"
+  title: "OVERRIDE FLOWSHEET"
+  drawing_number: "DWG-OVERRIDE-99"
+  sheet_size: "D"
+settings:
+  drawing_frame: false
+components:
+  equipment: []
+streams: []
+""",
+        encoding="utf-8",
+    )
+    svg_file = tmp_path / "override_with_frame.svg"
+
+    ret = main(["render", str(yaml_file), "-o", str(svg_file), "--drawing-frame"])
+    assert ret == 0
+    content = svg_file.read_text(encoding="utf-8")
+    assert 'id="drawing_border"' in content
+    assert 'id="title_block"' in content
+    assert "DWG-OVERRIDE-99" in content
+    assert "OVERRIDE FLOWSHEET" in content
