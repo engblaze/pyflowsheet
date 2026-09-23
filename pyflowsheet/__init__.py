@@ -3,6 +3,16 @@ from .annotations import TextElement
 from .backends import SvgContext
 from .core import Flowsheet, Port, Stream, UnitOperation
 from .core.enums import HorizontalLabelAlignment, VerticalLabelAlignment
+from .drawing import (
+    DrawingBorder,
+    DrawingFrame,
+    DrawingLegend,
+    GeneralNotes,
+    RevisionBlock,
+    SheetSizeConfig,
+    TitleBlock,
+    get_sheet_size_config,
+)
 from .instruments import Instrument
 from .schema import (
     FlowsheetSchema,
@@ -70,12 +80,16 @@ __all__ = [
     "DiaphragmValve",
     "Distillation",
     "DistillationColumn",
+    "DrawingBorder",
+    "DrawingFrame",
+    "DrawingLegend",
     "FiredHeater",
     "FlotationCell",
     "Flowsheet",
     "FlowsheetSchema",
     "FlowsheetValidationError",
     "GateValve",
+    "GeneralNotes",
     "GlobeValve",
     "GrabSamplingTee",
     "HeatExchanger",
@@ -96,8 +110,10 @@ __all__ = [
     "Pump",
     "Reboiler",
     "ReciprocatingPump",
+    "RevisionBlock",
     "RuptureDisc",
     "SafetyReliefValve",
+    "SheetSizeConfig",
     "ShellAndTubeExchanger",
     "Splitter",
     "SteamTrap",
@@ -106,10 +122,12 @@ __all__ = [
     "StreamFlag",
     "SvgContext",
     "TextElement",
+    "TitleBlock",
     "UnitOperation",
     "Valve",
     "VerticalLabelAlignment",
     "Vessel",
+    "get_sheet_size_config",
     "instruments",
     "validate_dict",
     "validate_yaml_file",
