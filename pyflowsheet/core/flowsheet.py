@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, TextIO
 
 import yaml
 from pathfinding.core.grid import Grid
 
+from ..drawing import DrawingFrame
 from .stream import Stream
 
 
@@ -35,6 +38,7 @@ class Flowsheet:
         self.showPorts = False
         self.tables = []
         self.settings = {}
+        self.drawing_frame: DrawingFrame | None = None
 
     def addAnnotations(self, elements):
         for e in elements:
@@ -220,7 +224,94 @@ class Flowsheet:
             e.drawTextLayer(ctx)
             ctx.endGroup()
 
+        if self.drawing_frame and self.drawing_frame.enabled:
+            self.drawing_frame.draw(ctx, flowsheet=self)
+            ctx.bounds = self.drawing_frame.get_bounds()
+
         return ctx
+
+    def enable_drawing_frame(
+        self,
+        sheet_size: str = "D",
+        title: str | None = None,
+        drawing_number: str | None = None,
+        revision: str | None = None,
+        notes: list[str] | None = None,
+        revisions: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+        settings: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> DrawingFrame:
+        """Configures and attaches a standards-compliant ASME Y14.1 / ISA-5.1 DrawingFrame.
+
+        Args:
+            sheet_size: Standard drawing sheet size ("A", "B", "C", "D", "E"). Defaults to "D".
+            title: Title for the drawing title block. Defaults to flowsheet name.
+            drawing_number: Drawing identifier string.
+            revision: Revision level identifier.
+            notes: List of general process notes.
+            revisions: Revision history records.
+            metadata: Additional metadata dictionary.
+            settings: Additional drawing frame settings dictionary.
+            **kwargs: Extra metadata fields or display toggles (e.g. show_border, show_legend).
+
+        Returns:
+            The created and attached DrawingFrame.
+        """
+        meta: dict[str, Any] = dict(metadata) if metadata else {}
+        if "id" not in meta:
+            meta["id"] = self.id
+        if "name" not in meta:
+            meta["name"] = self.name
+        if "description" not in meta and self.description:
+            meta["description"] = self.description
+
+        if title is not None:
+            meta["title"] = title
+        elif "title" not in meta:
+            meta["title"] = self.name
+
+        if drawing_number is not None:
+            meta["drawing_number"] = drawing_number
+        if revision is not None:
+            meta["revision"] = revision
+        if sheet_size is not None:
+            meta["sheet_size"] = sheet_size
+        if notes is not None:
+            meta["notes"] = notes
+        if revisions is not None:
+            meta["revisions"] = revisions
+
+        sett: dict[str, Any] = dict(settings) if settings else {}
+        sett_df: dict[str, Any] = (
+            dict(sett["drawing_frame"]) if isinstance(sett.get("drawing_frame"), dict) else {}
+        )
+
+        frame_toggle_keys = {
+            "enabled",
+            "show_border",
+            "show_title_block",
+            "show_revision_block",
+            "show_legend",
+            "show_notes",
+            "custom_legend_entries",
+        }
+
+        for k, v in kwargs.items():
+            if k in frame_toggle_keys:
+                sett_df[k] = v
+            else:
+                meta[k] = v
+
+        if sheet_size and "sheet_size" not in sett_df:
+            sett_df["sheet_size"] = sheet_size
+
+        if sett_df:
+            sett["drawing_frame"] = sett_df
+
+        frame = DrawingFrame.from_metadata(metadata=meta, settings=sett)
+        self.drawing_frame = frame
+        return frame
 
     def auto_layout(
         self,
@@ -534,7 +625,7 @@ class Flowsheet:
                 spatial_index.insert(f"LABEL_{s.id}", box, data=s)
 
     @classmethod
-    def _from_schema(cls, schema: Any) -> "Flowsheet":
+    def _from_schema(cls, schema: Any) -> Flowsheet:
         """Builds a Flowsheet instance from an already validated FlowsheetSchema."""
         from ..schema import instantiate_unit
 
@@ -578,10 +669,26 @@ class Flowsheet:
 
         flowsheet.settings = dict(schema.settings)
 
+        # 4. Auto-detect drawing frame
+        meta = getattr(schema, "metadata", None)
+        has_drawing_meta = False
+        if isinstance(meta, dict):
+            has_drawing_meta = bool(meta.get("drawing_number") or meta.get("sheet_size"))
+        elif meta is not None:
+            has_drawing_meta = bool(
+                getattr(meta, "drawing_number", None) or getattr(meta, "sheet_size", None)
+            )
+
+        df_settings = flowsheet.settings.get("drawing_frame")
+        if df_settings is not None or has_drawing_meta:
+            frame = DrawingFrame.from_metadata(schema.metadata, settings=df_settings)
+            if frame.enabled:
+                flowsheet.drawing_frame = frame
+
         return flowsheet
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Flowsheet":
+    def from_dict(cls, data: dict[str, Any]) -> Flowsheet:
         """Builds and validates a Flowsheet instance from a Python dictionary specification."""
         from ..schema import validate_dict
 
@@ -589,7 +696,7 @@ class Flowsheet:
         return cls._from_schema(schema)
 
     @classmethod
-    def from_yaml(cls, source: str | Path | TextIO) -> "Flowsheet":
+    def from_yaml(cls, source: str | Path | TextIO) -> Flowsheet:
         """Loads and validates a Flowsheet instance from a YAML string, filepath, or file stream."""
         from ..schema import validate_yaml_file, validate_yaml_string
 
