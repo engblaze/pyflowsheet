@@ -278,3 +278,17 @@ def test_occupied_corners_and_segments_init():
     )
     assert (100.0, 100.0) in router.occupied_corners
     assert len(router.occupied_segments) == 1
+
+
+def test_collinear_unblocked_fast_path():
+    router = OrthogonalRouter(grid_size=10.0)
+    # Ports at off-grid y=138.0 separated by 55px (greater than lead_len*2 = 40)
+    path = router.route(
+        start=(461.0, 138.0),
+        start_normal=(1.0, 0.0),
+        end=(516.0, 138.0),
+        end_normal=(-1.0, 0.0),
+        obstacles=[],
+    )
+    # Must be directly connected with a single 2-point segment without grid snapping
+    assert path == [(461.0, 138.0), (516.0, 138.0)]

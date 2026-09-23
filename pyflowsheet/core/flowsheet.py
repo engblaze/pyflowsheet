@@ -299,6 +299,14 @@ class Flowsheet:
                 if uid in self.unitOperations:
                     self.unitOperations[uid].position = pos
 
+            flipped = getattr(macro_solver, "flipped_units", set())
+            for uid, u_obj in self.unitOperations.items():
+                is_flipped = getattr(u_obj, "isFlippedHorizontal", False)
+                if uid in flipped and not is_flipped:
+                    u_obj.flipHorizontal()
+                elif uid not in flipped and is_flipped:
+                    u_obj.flipHorizontal()
+
         # 2. Build Spatial Index of Equipment Obstacles
         spatial_index = SpatialIndex()
         for u in macro_units:

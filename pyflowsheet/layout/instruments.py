@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -105,6 +106,39 @@ class InstrumentTapRouter:
                     if sub_host is not None:
                         return sub_host
 
+        inst_text = f"{inst.id} {getattr(inst, 'name', '')}".lower()
+        inst_tokens = set(re.findall(r"\w+", inst_text))
+
+        # Tier 2.5: Direct equipment ID or name match in instrument text
+        named_matches: list[tuple[float, Any]] = []
+        for u in macro_units:
+            uid_lower = u.id.lower()
+            uname_lower = getattr(u, "name", "").lower()
+            utype_lower = (getattr(u, "type", None) or u.__class__.__name__).lower()
+
+            if uid_lower in inst_tokens:
+                named_matches.append((len(uid_lower) + 100.0, u))
+            if uname_lower:
+                u_name_tokens = set(re.findall(r"\w+", uname_lower)) - {
+                    "module",
+                    "cell",
+                    "pump",
+                    "valve",
+                    "point",
+                    "unit",
+                    "system",
+                }
+                if u_name_tokens and u_name_tokens.issubset(inst_tokens):
+                    named_matches.append((len(uname_lower) + 50.0, u))
+            if "membrane" in inst_tokens and "membrane" in utype_lower:
+                named_matches.append((80.0, u))
+            if "reactor" in inst_tokens and ("stirred" in uname_lower or "mixer" in uid_lower):
+                named_matches.append((80.0, u))
+
+        if named_matches:
+            named_matches.sort(key=lambda m: m[0], reverse=True)
+            return named_matches[0][1]
+
         # Tier 3: ISA loop number matching
         tag_obj = getattr(inst, "tag", None)
         if not tag_obj or isinstance(tag_obj, str):
@@ -128,26 +162,36 @@ class InstrumentTapRouter:
                 var = getattr(tag_obj, "measured_variable", "") or (
                     tag_obj.letters[:1] if tag_obj.letters else ""
                 )
-                var_matches = [
-                    c
-                    for c in candidates
-                    if c.id.upper().startswith(var) or parse_isa_tag(c.id).letters.startswith(var)
-                ]
-                if var_matches:
-                    return var_matches[0]
 
-                valves = [
-                    c
-                    for c in candidates
-                    if "valve" in c.__class__.__name__.lower() or "valve" in c.id.lower()
-                ]
-                if valves:
-                    return valves[0]
+                def candidate_score(c: Any) -> float:
+                    c_name = getattr(c, "name", "").lower()
+                    c_type = c.__class__.__name__.lower()
+                    c_tokens = set(re.findall(r"\w+", c_name))
+                    shared = (inst_tokens & c_tokens) - {"unit", "valve", "point", "feed"}
+                    score = len(shared) * 50.0
 
-                return candidates[0]
+                    is_passive = "checkvalve" in c_type or "sampling" in c_type
+                    is_relief = "safetyrelief" in c_type or "rupturedisc" in c_type
+
+                    if is_passive or is_relief:
+                        score -= 60.0
+
+                    if var == "F":
+                        if "pump" in c_type or "controlvalve" in c_type:
+                            score += 30.0
+                    elif var == "L":
+                        if any(
+                            k in c_type for k in ["vessel", "cell", "tank", "flotation", "mixer"]
+                        ):
+                            score += 40.0
+                    elif var == "P":
+                        if "controlvalve" in c_type or "pump" in c_type:
+                            score += 20.0
+                    return score
+
+                return max(candidates, key=candidate_score)
 
         # Name / description substring matching fallback
-        inst_text = f"{inst.id} {getattr(inst, 'name', '')}".lower()
         for u in macro_units:
             if u.id.lower() in inst_text or (
                 getattr(u, "name", "") and u.name.lower() in inst_text

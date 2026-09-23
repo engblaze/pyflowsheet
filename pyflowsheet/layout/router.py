@@ -184,6 +184,58 @@ class OrthogonalRouter:
                     return True
             return False
 
+        # Fast path 0: Collinear facing ports with direct unblocked line-of-sight
+        eps = 1e-4
+        is_h_collinear = abs(start[1] - end[1]) <= eps and (
+            (start_normal[0] > 0 and end_normal[0] < 0 and start[0] < end[0])
+            or (start_normal[0] < 0 and end_normal[0] > 0 and start[0] > end[0])
+        )
+        is_v_collinear = abs(start[0] - end[0]) <= eps and (
+            (start_normal[1] > 0 and end_normal[1] < 0 and start[1] < end[1])
+            or (start_normal[1] < 0 and end_normal[1] > 0 and start[1] > end[1])
+        )
+        if is_h_collinear or is_v_collinear:
+            if not self._has_collinear_overlap(start, end):
+                blocked = False
+                if is_h_collinear:
+                    y = start[1]
+                    min_x = min(start[0], end[0])
+                    max_x = max(start[0], end[0])
+                    for obs in obstacles:
+                        if (
+                            obs.min_x - eps <= start[0] <= obs.max_x + eps
+                            and obs.min_y - eps <= start[1] <= obs.max_y + eps
+                        ) or (
+                            obs.min_x - eps <= end[0] <= obs.max_x + eps
+                            and obs.min_y - eps <= end[1] <= obs.max_y + eps
+                        ):
+                            continue
+                        e_obs = obs.expanded(self.obstacle_margin)
+                        if e_obs.min_y <= y <= e_obs.max_y:
+                            if max(min_x, e_obs.min_x) < min(max_x, e_obs.max_x):
+                                blocked = True
+                                break
+                else:
+                    x = start[0]
+                    min_y = min(start[1], end[1])
+                    max_y = max(start[1], end[1])
+                    for obs in obstacles:
+                        if (
+                            obs.min_x - eps <= start[0] <= obs.max_x + eps
+                            and obs.min_y - eps <= start[1] <= obs.max_y + eps
+                        ) or (
+                            obs.min_x - eps <= end[0] <= obs.max_x + eps
+                            and obs.min_y - eps <= end[1] <= obs.max_y + eps
+                        ):
+                            continue
+                        e_obs = obs.expanded(self.obstacle_margin)
+                        if e_obs.min_x <= x <= e_obs.max_x:
+                            if max(min_y, e_obs.min_y) < min(max_y, e_obs.max_y):
+                                blocked = True
+                                break
+                if not blocked:
+                    return [start, end]
+
         lead_len = self.grid_size * 2
 
         # 1. Calculate lead step from start along start_normal without changing

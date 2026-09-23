@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any
 
+from .spatial import AABB
+
 INLINE_TYPE_KEYWORDS = {
     "valve",
     "tee",
@@ -234,6 +236,7 @@ class MacroLayoutSolver:
         self.bay_height = bay_height
         self.flow_direction = flow_direction
         self.recycle_corridors: dict[str, str] = {}
+        self.flipped_units: set[str] = set()
         self.stream_ports: dict[str, tuple[str | None, str | None]] = {}
         for s in self.streams:
             if isinstance(s, (tuple, list)) and len(s) >= 5:
@@ -593,8 +596,22 @@ class MacroLayoutSolver:
                         continue
                     port_x_u = positions[u][0] + out_port["rel_pos"][0] * u_w
                     new_x_v = port_x_u - in_port["rel_pos"][0] * v_w
-                    positions[v] = (new_x_v, positions[v][1])
-                    vertically_constrained.add(v)
+                    test_box = AABB(new_x_v, positions[v][1], new_x_v + v_w, positions[v][1] + v_h)
+                    if not any(
+                        other_u != v
+                        and other_u not in self.graph.recycle_units
+                        and test_box.intersects(
+                            AABB(
+                                other_pos[0],
+                                other_pos[1],
+                                other_pos[0] + float(self.units[other_u].get("size", (40, 40))[0]),
+                                other_pos[1] + float(self.units[other_u].get("size", (40, 40))[1]),
+                            )
+                        )
+                        for other_u, other_pos in positions.items()
+                    ):
+                        positions[v] = (new_x_v, positions[v][1])
+                        vertically_constrained.add(v)
                 elif self.flow_direction == "left":
                     if positions[v][0] >= positions[u][0]:
                         continue
@@ -609,8 +626,22 @@ class MacroLayoutSolver:
                         continue
                     port_y_u = positions[u][1] + out_port["rel_pos"][1] * u_h
                     new_y_v = port_y_u - in_port["rel_pos"][1] * v_h
-                    positions[v] = (positions[v][0], new_y_v)
-                    vertically_constrained.add(v)
+                    test_box = AABB(positions[v][0], new_y_v, positions[v][0] + v_w, new_y_v + v_h)
+                    if not any(
+                        other_u != v
+                        and other_u not in self.graph.recycle_units
+                        and test_box.intersects(
+                            AABB(
+                                other_pos[0],
+                                other_pos[1],
+                                other_pos[0] + float(self.units[other_u].get("size", (40, 40))[0]),
+                                other_pos[1] + float(self.units[other_u].get("size", (40, 40))[1]),
+                            )
+                        )
+                        for other_u, other_pos in positions.items()
+                    ):
+                        positions[v] = (positions[v][0], new_y_v)
+                        vertically_constrained.add(v)
                 else:  # "right"
                     if positions[v][0] <= positions[u][0]:
                         continue
@@ -625,8 +656,22 @@ class MacroLayoutSolver:
                         continue
                     port_y_u = positions[u][1] + out_port["rel_pos"][1] * u_h
                     new_y_v = port_y_u - in_port["rel_pos"][1] * v_h
-                    positions[v] = (positions[v][0], new_y_v)
-                    vertically_constrained.add(v)
+                    test_box = AABB(positions[v][0], new_y_v, positions[v][0] + v_w, new_y_v + v_h)
+                    if not any(
+                        other_u != v
+                        and other_u not in self.graph.recycle_units
+                        and test_box.intersects(
+                            AABB(
+                                other_pos[0],
+                                other_pos[1],
+                                other_pos[0] + float(self.units[other_u].get("size", (40, 40))[0]),
+                                other_pos[1] + float(self.units[other_u].get("size", (40, 40))[1]),
+                            )
+                        )
+                        for other_u, other_pos in positions.items()
+                    ):
+                        positions[v] = (positions[v][0], new_y_v)
+                        vertically_constrained.add(v)
 
     def solve(self) -> dict[str, tuple[float, float]]:
         """Executes layout solving and returns dictionary mapping unit ID to (x, y)."""
@@ -862,7 +907,60 @@ class MacroLayoutSolver:
                             curr_x += u_w + gap
             else:
                 # Terminal inline chain without downstream primary unit
-                if self.flow_direction == "down":
+                first_u = chain[0]
+                from_port_name = None
+                for s in self.streams:
+                    u_f = str(s[1]) if isinstance(s, (tuple, list)) else str(s.get("from", ""))
+                    u_t = str(s[2]) if isinstance(s, (tuple, list)) else str(s.get("to", ""))
+                    if u_f == p_from and u_t == first_u:
+                        from_port_name = (
+                            str(s[3])
+                            if isinstance(s, (tuple, list)) and len(s) > 3
+                            else (s.get("from_port") if isinstance(s, dict) else None)
+                        )
+                        break
+
+                p_ports = self._get_ports_for_unit(p_from)
+                port_meta = p_ports.get(str(from_port_name)) if from_port_name else None
+                port_rel = port_meta.get("rel_pos", (1.0, 0.5)) if port_meta else (1.0, 0.5)
+                port_norm = port_meta.get("normal", (1.0, 0.0)) if port_meta else (1.0, 0.0)
+
+                is_inlet_branch = port_norm[0] < -0.5 or (
+                    abs(port_norm[0]) < 0.1 and port_rel[0] <= 0.2
+                )
+                is_top_branch = port_norm[1] < -0.5 or (
+                    abs(port_norm[1]) < 0.1 and port_rel[1] <= 0.2
+                )
+                is_bottom_branch = port_norm[1] > 0.5 or (
+                    abs(port_norm[1]) < 0.1 and port_rel[1] >= 0.8
+                )
+
+                if is_inlet_branch:
+                    curr_x = pos_from[0] - 35.0
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                            u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                            positions[u] = (curr_x - u_w, pos_from[1] - u_h - 20.0)
+                            curr_x -= u_w + 35.0
+                elif is_top_branch:
+                    curr_y = pos_from[1] - 35.0
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                            positions[u] = (pos_from[0] + port_rel[0] * w_from, curr_y - u_h)
+                            curr_y -= u_h + 35.0
+                elif is_bottom_branch:
+                    curr_y = pos_from[1] + h_from + 35.0
+                    for u in chain:
+                        if u not in fixed_units:
+                            u_sz = self.units[u].get("size")
+                            u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                            positions[u] = (pos_from[0] + port_rel[0] * w_from, curr_y)
+                            curr_y += u_h + 35.0
+                elif self.flow_direction == "down":
                     curr_y = pos_from[1] + h_from + 35.0
                     for u in chain:
                         if u not in fixed_units:
@@ -890,7 +988,57 @@ class MacroLayoutSolver:
         # 7. Allocate corridors and position recycle units
         self.recycle_corridors = {}
         for c_idx, chain_info in enumerate(self.graph.recycle_chains):
-            chain_corridor = "bottom" if c_idx % 2 == 0 else "top"
+            target = chain_info.get("target")
+            target_port_name = None
+            for s in self.streams:
+                s_id = str(s[0]) if isinstance(s, (tuple, list)) else str(s.get("id", ""))
+                u_to = str(s[2]) if isinstance(s, (tuple, list)) else str(s.get("to", ""))
+                if s_id in chain_info.get("streams", []) and u_to == target:
+                    target_port_name = (
+                        str(s[4])
+                        if isinstance(s, (tuple, list)) and len(s) > 4
+                        else (s.get("to_port") if isinstance(s, dict) else None)
+                    )
+                    break
+
+            tgt_ports = self._get_ports_for_unit(target) if target else {}
+            port_data = tgt_ports.get(str(target_port_name)) if target_port_name else None
+
+            chain_corridor = None
+            if port_data:
+                norm_y = port_data.get("normal", (0, 0))[1]
+                rel_y = port_data.get("rel_pos", (0.5, 0.5))[1]
+                if norm_y < -0.1 or rel_y < 0.4:
+                    chain_corridor = "top"
+                elif norm_y > 0.1 or rel_y > 0.6:
+                    chain_corridor = "bottom"
+
+            if not chain_corridor:
+                source = chain_info.get("source")
+                source_port_name = None
+                for s in self.streams:
+                    s_id = str(s[0]) if isinstance(s, (tuple, list)) else str(s.get("id", ""))
+                    u_from = str(s[1]) if isinstance(s, (tuple, list)) else str(s.get("from", ""))
+                    if s_id in chain_info.get("streams", []) and u_from == source:
+                        source_port_name = (
+                            str(s[3])
+                            if isinstance(s, (tuple, list)) and len(s) > 3
+                            else (s.get("from_port") if isinstance(s, dict) else None)
+                        )
+                        break
+                src_ports = self._get_ports_for_unit(source) if source else {}
+                src_port_data = src_ports.get(str(source_port_name)) if source_port_name else None
+                if src_port_data:
+                    norm_y = src_port_data.get("normal", (0, 0))[1]
+                    rel_y = src_port_data.get("rel_pos", (0.5, 0.5))[1]
+                    if norm_y < -0.1 or rel_y < 0.4:
+                        chain_corridor = "top"
+                    elif norm_y > 0.1 or rel_y > 0.6:
+                        chain_corridor = "bottom"
+
+            if not chain_corridor:
+                chain_corridor = "bottom" if c_idx % 2 == 0 else "top"
+
             for s_id in chain_info.get("streams", []):
                 self.recycle_corridors[s_id] = chain_corridor
 
@@ -918,6 +1066,11 @@ class MacroLayoutSolver:
                     default=self.origin[0],
                 )
                 tgt_pos = (min_x, self.origin[1])
+
+            # If flow runs right-to-left along this corridor, mark units for horizontal flip
+            if tgt_pos[0] < src_pos[0]:
+                for u in chain_units:
+                    self.flipped_units.add(u)
 
             if self.flow_direction == "down":
                 corridor_offset = 60.0

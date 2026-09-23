@@ -286,3 +286,38 @@ def test_water_treatment_pid_autolayout_invariants():
         inst = fs.unitOperations[inst_id]
         assert hasattr(inst, "leader_line") and inst.leader_line is not None
         assert len(inst.leader_line) >= 2, f"Instrument {inst_id} missing leader line"
+
+    # 5. Collinear streams must be direct 2-point connections without jogs
+    assert len(fs.streams["S02_1"].calculated_route) == 2
+    assert len(fs.streams["S02_2"].calculated_route) == 2
+    assert len(fs.streams["S02_3"].calculated_route) == 2
+    assert len(fs.streams["S06_2"].calculated_route) == 2
+    assert len(fs.streams["S06_3"].calculated_route) == 2
+
+    # 6. S05 recycle stream routes cleanly in bottom corridor without looping to the top
+    s05_3 = fs.streams["S05_3"].calculated_route
+    for pt in s05_3:
+        assert pt[1] >= 165.0, f"S05_3 waypoint {pt} looped into top corridor"
+    assert s05_3[-1][0] < s05_3[0][0]
+
+    # 7. No equipment bounding boxes overlap
+    from pyflowsheet.layout.spatial import AABB
+
+    units = list(fs.unitOperations.values())
+    for i in range(len(units)):
+        u1 = units[i]
+        b1 = AABB(
+            u1.position[0],
+            u1.position[1],
+            u1.position[0] + u1.size[0],
+            u1.position[1] + u1.size[1],
+        )
+        for j in range(i + 1, len(units)):
+            u2 = units[j]
+            b2 = AABB(
+                u2.position[0],
+                u2.position[1],
+                u2.position[0] + u2.size[0],
+                u2.position[1] + u2.size[1],
+            )
+            assert not b1.intersects(b2), f"Collision detected between {u1.id} and {u2.id}"
