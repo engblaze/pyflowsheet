@@ -282,15 +282,17 @@ class SvgContext:
         self.g.add(p)
         return
 
-    def startGroup(self, id):
-        if self.g != None:
+    def startGroup(self, id: str, transform: str | None = None):
+        if self.g is not None:
             self.gstack.append(self.g)
 
         safe_id = _sanitize_xml_id(id)
         self.g = self.dwg.g(id=safe_id)
+        if transform:
+            self.g.attribs["transform"] = transform
 
     def startTransformedGroup(self, element):
-        if self.g != None:
+        if self.g is not None:
             self.gstack.append(self.g)
 
         safe_id = _sanitize_xml_id(element.id)
@@ -310,10 +312,13 @@ class SvgContext:
         return
 
     def endGroup(self):
-        self.dwg.add(self.g)
-        self.g = None
         if len(self.gstack) > 0:
-            self.g = self.gstack.pop()
+            parent = self.gstack.pop()
+            parent.add(self.g)
+            self.g = parent
+        else:
+            self.dwg.add(self.g)
+            self.g = None
         return
 
     def html(self, html: str, position: tuple[float, float], size: tuple[float, float]):
@@ -358,6 +363,9 @@ class SvgContext:
         Returns:
             str: The string containing the xml representation of the diagram
         """
+
+        while self.g is not None:
+            self.endGroup()
 
         if width == None:
             width = self.bounds[2] - self.bounds[0]

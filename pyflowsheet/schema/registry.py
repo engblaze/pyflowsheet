@@ -283,4 +283,7 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
     if eq.layout_hints is not None:
         unit.layout_hints = eq.layout_hints
 
+    if getattr(eq, "fixed", False):
+        unit.fixed = True
+
     return unit

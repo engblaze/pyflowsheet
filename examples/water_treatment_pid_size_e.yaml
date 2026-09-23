@@ -12,7 +12,7 @@ metadata:
   subtitle: "PROCESS FLOW DIAGRAM & PIPING/INSTRUMENTATION (P&ID)"
   drawing_number: "DWG-PFD-WT-002"
   revision: "B"
-  sheet_size: "D"
+  sheet_size: "E"
   scale: "NTS"
   sheet: "1 OF 1"
   cage_code: "1A2B3"
@@ -123,11 +123,6 @@ equipment:
     position: [250, 40]
     size: [40, 40]
     rotation: 90
-    layout_hints:
-      relative_to:
-        target: "P-102"
-        direction: "above"
-        offset: 60
 
   - id: Recovered_IONP
     name: "Recovered IONP"
@@ -155,12 +150,6 @@ equipment:
     type: "ProgressiveCavityPump"
     position: [250, 120]
     size: [40, 25]
-    rotation: 90
-    layout_hints:
-      relative_to:
-        target: "Mixer"
-        direction: "above"
-        offset: 80
 
   - id: P-103
     name: "Slurry Transfer Pump"
@@ -255,11 +244,11 @@ equipment:
     position: [380, 420]
     size: [18, 10]
 
-  # - id: CKV-104
-  #   name: "IONP Recycle Check Valve"
-  #   type: "CheckValve"
-  #   position: [480, 50]
-  #   size: [18, 10]
+  - id: CKV-104
+    name: "IONP Recycle Check Valve"
+    type: "CheckValve"
+    position: [480, 50]
+    size: [18, 10]
 
   # ----------------------------------------------------------------------------
   # 5. Process Instrumentation & Transmitters (ANSI/ISA-5.1)
@@ -290,11 +279,6 @@ equipment:
     location: "control_room"
     position: [210, 130]
     size: [24, 24]
-    # layout_hints:
-    #   relative_to:
-    #     target: "Mixer"
-    #     direction: "left"
-    #     offset: 60
 
   - id: FIT-102
     name: "IONP Dosing Flow Transmitter"
@@ -359,14 +343,14 @@ equipment:
     position: [590, 40]
     size: [24, 24]
 
-  # - id: FIT-108
-  #   name: "Recycle Flow Transmitter"
-  #   type: "Instrument"
-  #   tag: "FIT-108"
-  #   balloon_type: "discrete"
-  #   location: "field"
-  #   position: [740, 40]
-  #   size: [24, 24]
+  - id: FIT-108
+    name: "Recycle Flow Transmitter"
+    type: "Instrument"
+    tag: "FIT-108"
+    balloon_type: "discrete"
+    location: "field"
+    position: [740, 40]
+    size: [24, 24]
 
 # ------------------------------------------------------------------------------
 # Process & Signal Streams
@@ -500,15 +484,15 @@ streams:
     to: Recovered_IONP:In
     line_type: process
 
-  # - id: S08_1
-  #   from: Recovered_IONP:Out
-  #   to: CKV-104:In
-  #   line_type: process
+  - id: S08_1
+    from: Recovered_IONP:Out
+    to: CKV-104:In
+    line_type: process
 
-  # - id: S08_2
-  #   from: CKV-104:Out
-  #   to: IONP_Makeup:In
-  #   line_type: process
+  - id: S08_2
+    from: CKV-104:Out
+    to: IONP_Makeup:In
+    line_type: process
 
   # ANSI/ISA-5.1 Signal Lines (Pneumatic & Electric)
   - id: SIG_FCV101

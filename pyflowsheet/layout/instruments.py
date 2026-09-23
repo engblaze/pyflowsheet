@@ -132,6 +132,8 @@ class InstrumentTapRouter:
                     named_matches.append((len(uname_lower) + 50.0, u))
             if "membrane" in inst_tokens and "membrane" in utype_lower:
                 named_matches.append((80.0, u))
+            if "reactor" in inst_tokens and "reactor" in uname_lower:
+                named_matches.append((90.0, u))
             if "reactor" in inst_tokens and ("stirred" in uname_lower or "mixer" in uid_lower):
                 named_matches.append((80.0, u))
 

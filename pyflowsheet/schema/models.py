@@ -126,6 +126,7 @@ class EquipmentSchema(BaseModel):
     rotation: float = 0.0
     flip_horizontal: bool = False
     flip_vertical: bool = False
+    fixed: bool = False
     cap_length: float | None = None
     valve_type: str | None = Field(
         default=None, description="Valve body type (globe, gate, ball, etc.)"
@@ -152,6 +153,22 @@ class EquipmentSchema(BaseModel):
     ports: list[PortSchema] = Field(default_factory=list)
     text_anchor: TextAnchorSchema | None = None
     layout_hints: LayoutHintsSchema | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_layout_hints(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            hints_to_lift = ("relative_to", "align", "stage", "flow_direction")
+            found = {k: data[k] for k in hints_to_lift if k in data}
+            if found:
+                hints = data.get("layout_hints")
+                if hints is None:
+                    data["layout_hints"] = found
+                elif isinstance(hints, dict):
+                    for k, v in found.items():
+                        if k not in hints:
+                            hints[k] = v
+        return data
 
     def get_name(self) -> str:
         return self.name if self.name is not None else self.id

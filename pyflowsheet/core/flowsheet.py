@@ -173,6 +173,50 @@ class Flowsheet:
         self.annotations.append(element)
         return
 
+    def get_content_bounds(
+        self,
+    ) -> tuple[tuple[float, float], tuple[float, float]] | None:
+        """Computes the minimal bounding box ((x_min, y_min), (x_max, y_max))
+        encompassing all units, stream vertices, leader lines, and annotations.
+        """
+        xs: list[float] = []
+        ys: list[float] = []
+
+        for u in self.unitOperations.values():
+            xs.extend([float(u.position[0]), float(u.position[0] + u.size[0])])
+            ys.extend([float(u.position[1]), float(u.position[1] + u.size[1])])
+            if getattr(u, "leader_line", None):
+                for pt in u.leader_line:
+                    xs.append(float(pt[0]))
+                    ys.append(float(pt[1]))
+
+        for s in self.streams.values():
+            if s.calculated_route:
+                pts = s.calculated_route
+            elif s.manualRouting:
+                pts = [s.fromPort.get_position()]
+                for step in s.manualRouting:
+                    pts.append((pts[-1][0] + step[0], pts[-1][1] + step[1]))
+                pts.append(s.toPort.get_position())
+            else:
+                pts = [s.fromPort.get_position(), s.toPort.get_position()]
+
+            for pt in pts:
+                xs.append(float(pt[0]))
+                ys.append(float(pt[1]))
+
+        for e in self.annotations:
+            xs.append(float(e.position[0]))
+            ys.append(float(e.position[1]))
+            if hasattr(e, "size") and e.size:
+                xs.append(float(e.position[0] + e.size[0]))
+                ys.append(float(e.position[1] + e.size[1]))
+
+        if not xs or not ys:
+            return None
+
+        return ((min(xs), min(ys)), (max(xs), max(ys)))
+
     def draw(self, ctx):
         """Draws the process flow diagram with the help of the context passed as an argument.
 
@@ -201,6 +245,39 @@ class Flowsheet:
             matrix, minx, miny = None, 0, 0
             grid = None
 
+        has_frame = bool(self.drawing_frame and self.drawing_frame.enabled)
+        if has_frame:
+            transform = None
+            content_bounds = self.get_content_bounds()
+            if content_bounds is not None:
+                (x_min_d, y_min_d), (x_max_d, y_max_d) = content_bounds
+                (x_min_p, y_min_p), (x_max_p, y_max_p) = self.drawing_frame.get_drawable_rect()
+
+                fits = (
+                    x_min_d >= x_min_p
+                    and x_max_d <= x_max_p
+                    and y_min_d >= y_min_p
+                    and y_max_d <= y_max_p
+                )
+
+                if not fits:
+                    diag_w = x_max_d - x_min_d
+                    diag_h = y_max_d - y_min_d
+                    target_w = x_max_p - x_min_p
+                    target_h = y_max_p - y_min_p
+
+                    if diag_w > 0 and diag_h > 0 and target_w > 0 and target_h > 0:
+                        s = min(1.0, target_w / diag_w, target_h / diag_h)
+                        scaled_w = diag_w * s
+                        scaled_h = diag_h * s
+                        center_x = x_min_p + (target_w - scaled_w) / 2.0
+                        center_y = y_min_p + (target_h - scaled_h) / 2.0
+                        dx = center_x - s * x_min_d
+                        dy = center_y - s * y_min_d
+                        transform = f"translate({dx:.2f}, {dy:.2f}) scale({s:.4f})"
+
+            ctx.startGroup("flowsheet_diagram", transform=transform)
+
         for s in self.streams.values():
             ctx.startGroup(s.id)
             s.draw(ctx, grid, minx, miny)
@@ -222,6 +299,9 @@ class Flowsheet:
             ctx.startGroup(e.id)
             e.draw(ctx)
             e.drawTextLayer(ctx)
+            ctx.endGroup()
+
+        if has_frame:
             ctx.endGroup()
 
         if self.drawing_frame and self.drawing_frame.enabled:

@@ -165,6 +165,38 @@ class DrawingFrame:
     def get_bounds(self) -> list[float]:
         return list(self.cfg.bounds)
 
+    def get_drawable_rect(
+        self, padding: float = 20.0
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
+        """Calculates the available rectangular area ((x_min, y_min), (x_max, y_max)) for
+        flowsheet equipment, avoiding all active frame elements and margins.
+        """
+        inner = self.cfg.inner_rect
+        x_min = inner[0][0] + padding
+        y_min = inner[0][1] + padding
+
+        # Right boundary: bounded by left edge of legend, revision block, or title block if shown
+        right_edges = []
+        if self.show_legend and self.legend is not None:
+            right_edges.append(self.cfg.legend_rect[0][0])
+        if self.show_revision_block and self.revision_block is not None:
+            right_edges.append(self.cfg.revision_block_rect[0][0])
+        if self.show_title_block and self.title_block is not None:
+            right_edges.append(self.cfg.title_block_rect[0][0])
+
+        x_max = (min(right_edges) - padding) if right_edges else (inner[1][0] - padding)
+
+        # Bottom boundary: bounded by top edge of notes or title block if shown
+        bottom_edges = []
+        if self.show_notes and self.notes_block is not None:
+            bottom_edges.append(self.cfg.notes_rect[0][1])
+        if self.show_title_block and self.title_block is not None:
+            bottom_edges.append(self.cfg.title_block_rect[0][1])
+
+        y_max = (min(bottom_edges) - padding) if bottom_edges else (inner[1][1] - padding)
+
+        return ((x_min, y_min), (x_max, y_max))
+
     def draw(self, ctx, flowsheet=None) -> None:
         if not self.enabled:
             return
