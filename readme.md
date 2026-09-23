@@ -37,11 +37,15 @@ pyflowsheet render flowsheet.yaml -o flowsheet.svg
 # Render with automatic layout calculation
 pyflowsheet render flowsheet.yaml -o flowsheet.svg --auto-layout
 
+# Render with forced recalculation of layout (overriding explicit YAML coordinates)
+pyflowsheet render flowsheet.yaml -o flowsheet.svg --auto-layout --force-reposition
+
 # Validate YAML flowsheet syntax and topological integrity
 pyflowsheet validate flowsheet.yaml
 
 # Export the Flowsheet JSON Schema
 pyflowsheet export-schema -o flowsheet.schema.json
+
 ```
 
 # Supported Flowsheet Elements

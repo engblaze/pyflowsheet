@@ -153,3 +153,72 @@ components:
     captured = capsys.readouterr()
     assert "Error rendering" in captured.err
     assert "Layout solver exploded" in captured.err
+
+
+def test_cli_render_auto_layout_force_reposition(tmp_path: Path):
+    yaml_content = """
+schema_version: "1.0"
+metadata:
+  id: "CLI_FORCE_TEST"
+  name: "CLI Force Reposition Test"
+components:
+  equipment:
+    - id: "V1"
+      type: "Vessel"
+      position: [500, 500]
+    - id: "V2"
+      type: "Vessel"
+      position: [700, 700]
+streams:
+  - id: "S01"
+    from:
+      unit: "V1"
+      port: "Out"
+    to:
+      unit: "V2"
+      port: "In"
+"""
+    input_file = tmp_path / "force_test.yaml"
+    output_preserved = tmp_path / "preserved.svg"
+    output_forced = tmp_path / "forced.svg"
+    input_file.write_text(yaml_content, encoding="utf-8")
+
+    # 1. Without --force-reposition: manual coordinates (500, 500) are preserved
+    code1 = main(["render", str(input_file), "-o", str(output_preserved), "--auto-layout"])
+    assert code1 == 0
+    svg1 = output_preserved.read_text(encoding="utf-8")
+    assert 'x="500.0"' in svg1
+
+    # 2. With --force-reposition: layout solver re-stages coordinates from scratch
+    code2 = main(
+        [
+            "render",
+            str(input_file),
+            "-o",
+            str(output_forced),
+            "--auto-layout",
+            "--force-reposition",
+        ]
+    )
+    assert code2 == 0
+    svg2 = output_forced.read_text(encoding="utf-8")
+    # Position (500, 500) is discarded and replaced with stage coordinates (x=60.0, 220.0)
+    assert 'x="500.0"' not in svg2
+    assert 'x="60.0"' in svg2
+    assert 'x="220.0"' in svg2
+
+    # 3. --force-reposition automatically activates layout even if --auto-layout is omitted
+    output_forced2 = tmp_path / "forced2.svg"
+    code3 = main(
+        [
+            "render",
+            str(input_file),
+            "-o",
+            str(output_forced2),
+            "--force-reposition",
+        ]
+    )
+    assert code3 == 0
+    svg3 = output_forced2.read_text(encoding="utf-8")
+    assert 'x="500.0"' not in svg3
+    assert 'x="60.0"' in svg3

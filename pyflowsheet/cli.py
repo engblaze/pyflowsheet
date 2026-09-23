@@ -32,8 +32,9 @@ def render_command(args: argparse.Namespace) -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        if getattr(args, "auto_layout", False):
-            flowsheet.auto_layout()
+        force_reposition = getattr(args, "force_reposition", False)
+        if getattr(args, "auto_layout", False) or force_reposition:
+            flowsheet.auto_layout(force_reposition=force_reposition)
 
         ctx = SvgContext(str(output_path))
         flowsheet.draw(ctx)
@@ -110,6 +111,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--auto-layout",
         action="store_true",
         help="Automatically compute macro equipment positions and orthogonal stream routing.",
+    )
+    render_parser.add_argument(
+        "--force-reposition",
+        action="store_true",
+        help="Force recalculation of equipment positions, overriding explicit YAML coordinates.",
     )
 
     # validate
