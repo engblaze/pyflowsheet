@@ -106,3 +106,47 @@ streams: []
 """
     pfd = Flowsheet.from_yaml(yaml_content)
     assert pfd.drawing_frame is None or not pfd.drawing_frame.enabled
+
+
+def test_flowsheet_from_yaml_boolean_disabled_frame(tmp_path):
+    yaml_content = """
+schema_version: "1.0"
+metadata:
+  id: "BOOL_DISABLED_FRAME"
+  drawing_number: "DWG-BOOL-DISABLED"
+  sheet_size: "D"
+settings:
+  drawing_frame: false
+components:
+  equipment: []
+streams: []
+"""
+    pfd = Flowsheet.from_yaml(yaml_content)
+    assert pfd.drawing_frame is None or not pfd.drawing_frame.enabled
+
+    out_svg = tmp_path / "bool_disabled.svg"
+    ctx = SvgContext(str(out_svg))
+    pfd.draw(ctx)
+    ctx.render(saveFile=True)
+
+    content = out_svg.read_text(encoding="utf-8")
+    assert 'id="drawing_border"' not in content
+    assert 'id="title_block"' not in content
+
+
+def test_flowsheet_from_yaml_boolean_enabled_frame():
+    yaml_content = """
+schema_version: "1.0"
+metadata:
+  id: "BOOL_ENABLED_FRAME"
+  sheet_size: "C"
+settings:
+  drawing_frame: true
+components:
+  equipment: []
+streams: []
+"""
+    pfd = Flowsheet.from_yaml(yaml_content)
+    assert pfd.drawing_frame is not None
+    assert pfd.drawing_frame.enabled is True
+    assert pfd.drawing_frame.sheet_size == "C"

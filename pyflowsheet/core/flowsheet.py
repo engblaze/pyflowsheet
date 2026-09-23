@@ -680,6 +680,9 @@ class Flowsheet:
             )
 
         df_settings = flowsheet.settings.get("drawing_frame")
+        if isinstance(df_settings, bool):
+            df_settings = {"enabled": df_settings}
+
         if df_settings is not None or has_drawing_meta:
             frame = DrawingFrame.from_metadata(schema.metadata, settings=df_settings)
             if frame.enabled:

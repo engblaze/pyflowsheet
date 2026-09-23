@@ -118,9 +118,17 @@ class DrawingFrame:
                 settings = meta_dict["settings"]
             meta_dict = _normalize_dict(meta_dict["metadata"])
 
-        settings_dict = _normalize_dict(settings)
+        if isinstance(settings, bool):
+            settings_dict = {"enabled": settings}
+        else:
+            settings_dict = _normalize_dict(settings)
+
         if "drawing_frame" in settings_dict:
-            df_settings = _normalize_dict(settings_dict["drawing_frame"])
+            df_val = settings_dict["drawing_frame"]
+            if isinstance(df_val, bool):
+                df_settings = {"enabled": df_val}
+            else:
+                df_settings = _normalize_dict(df_val)
         else:
             df_settings = settings_dict
 
