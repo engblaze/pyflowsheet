@@ -834,6 +834,11 @@ class MacroLayoutSolver:
                     positions[uid] = (x, y)
 
         # 6. Position inline units along spans between primary units
+        p_from_chain_counts: dict[str, int] = defaultdict(int)
+        for p_f, _, ch in inline_chains:
+            if ch:
+                p_from_chain_counts[p_f] += 1
+
         for p_from, p_to, chain in inline_chains:
             if not chain:
                 continue
@@ -846,6 +851,17 @@ class MacroLayoutSolver:
 
             if p_to and p_to in positions:
                 pos_to = positions[p_to]
+                chain_y = (
+                    pos_to[1]
+                    if (p_from_chain_counts[p_from] > 1 and p_to and p_to in positions)
+                    else pos_from[1]
+                )
+                chain_x = (
+                    pos_to[0]
+                    if (p_from_chain_counts[p_from] > 1 and p_to and p_to in positions)
+                    else pos_from[0]
+                )
+
                 if self.flow_direction == "down":
                     start_y = pos_from[1] + h_from + 20.0
                     end_y = pos_to[1] - 20.0
@@ -863,7 +879,7 @@ class MacroLayoutSolver:
                         if u not in fixed_units:
                             u_sz = self.units[u].get("size")
                             u_h = float(u_sz[1]) if u_sz is not None else 40.0
-                            positions[u] = (pos_from[0], curr_y)
+                            positions[u] = (chain_x, curr_y)
                             curr_y += u_h + gap
                 elif self.flow_direction == "left":
                     start_x = pos_from[0] - 20.0
@@ -884,7 +900,7 @@ class MacroLayoutSolver:
                         if u not in fixed_units:
                             u_sz = self.units[u].get("size")
                             u_w = float(u_sz[0]) if u_sz is not None else 40.0
-                            positions[u] = (curr_x - u_w, pos_from[1])
+                            positions[u] = (curr_x - u_w, chain_y)
                             curr_x -= u_w + gap
                 else:  # "right"
                     start_x = pos_from[0] + w_from + 20.0
@@ -903,7 +919,7 @@ class MacroLayoutSolver:
                         if u not in fixed_units:
                             u_sz = self.units[u].get("size")
                             u_w = float(u_sz[0]) if u_sz is not None else 40.0
-                            positions[u] = (curr_x, pos_from[1])
+                            positions[u] = (curr_x, chain_y)
                             curr_x += u_w + gap
             else:
                 # Terminal inline chain without downstream primary unit
@@ -1092,7 +1108,16 @@ class MacroLayoutSolver:
                 for idx, u in enumerate(chain_units):
                     frac = (idx + 1) / (k + 1)
                     y = src_pos[1] + frac * (tgt_pos[1] - src_pos[1])
-                    positions[u] = (corr_x, y)
+                    u_sz = self.units[u].get("size")
+                    u_w = float(u_sz[0]) if u_sz is not None else 40.0
+                    u_ports = self._get_ports_for_unit(u)
+                    in_p = (
+                        u_ports.get("In")
+                        or u_ports.get("Feed")
+                        or (next(iter(u_ports.values())) if u_ports else None)
+                    )
+                    rel_x = in_p.get("rel_pos", (0.5, 0.5))[0] if in_p else 0.5
+                    positions[u] = (corr_x - rel_x * u_w, y)
             else:
                 corridor_offset = 60.0
                 if chain_corridor == "bottom":
@@ -1121,7 +1146,16 @@ class MacroLayoutSolver:
                 for idx, u in enumerate(chain_units):
                     frac = (idx + 1) / (k + 1)
                     x = src_pos[0] + frac * (tgt_pos[0] - src_pos[0])
-                    positions[u] = (x, corr_y)
+                    u_sz = self.units[u].get("size")
+                    u_h = float(u_sz[1]) if u_sz is not None else 40.0
+                    u_ports = self._get_ports_for_unit(u)
+                    in_p = (
+                        u_ports.get("In")
+                        or u_ports.get("Feed")
+                        or (next(iter(u_ports.values())) if u_ports else None)
+                    )
+                    rel_y = in_p.get("rel_pos", (0.5, 0.5))[1] if in_p else 0.5
+                    positions[u] = (x, corr_y - rel_y * u_h)
 
         # Allocate corridors for any unassigned recycle streams
         for idx, s_id in enumerate(sorted(self.graph.recycle_streams)):

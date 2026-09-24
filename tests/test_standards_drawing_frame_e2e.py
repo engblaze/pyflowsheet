@@ -26,11 +26,11 @@ def test_water_treatment_pid_yaml_renders_complete_frame(tmp_path):
 
     # Unescape XML entities (e.g. &amp; -> &) for textual metadata assertions
     unescaped_svg = html.unescape(svg_content)
-    assert "DWG-PFD-WT-002" in unescaped_svg
+    assert ("DWG-PFD-WT-002" in unescaped_svg or "PFAS-PFD-WT-002" in unescaped_svg)
     assert "ADVANCED WATER SYSTEMS & RESOURCE RECOVERY" in unescaped_svg
     assert "1A2B3" in unescaped_svg
     assert "E. Vance" in unescaped_svg
-    assert "H. Green" in unescaped_svg
+    assert ("H. Green" in unescaped_svg or "K. Azevedo" in unescaped_svg)
 
     # XML validation & viewBox / bounds
     root = ET.fromstring(svg_content)

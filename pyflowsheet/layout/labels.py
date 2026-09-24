@@ -57,7 +57,16 @@ class LabelPlacementSolver:
                 for item in spatial_index.query_intersects(box)
                 if item[0] != unit_id and item[0] != f"LABEL_{unit_id}"
             ]
-            return len(collisions) * 1000.0
+            penalty = 0.0
+            for item in collisions:
+                iid = str(item[0])
+                if iid.startswith("LABEL_"):
+                    penalty += 10000.0
+                elif iid.startswith("PIPE_"):
+                    penalty += 50.0
+                else:
+                    penalty += 5000.0
+            return penalty
 
         best_box, best_pos = min(candidates, key=lambda c: score(c[0]))
         return best_pos, best_box
@@ -91,60 +100,68 @@ class LabelPlacementSolver:
             if seg_len < 1e-3:
                 continue
 
-            mx = (p1[0] + p2[0]) / 2.0
-            my = (p1[1] + p2[1]) / 2.0
-
             is_horizontal = abs(p2[0] - p1[0]) >= abs(p2[1] - p1[1])
-            if is_horizontal:
-                # Candidate 1: Above
-                box_above = AABB(
-                    mx - lw / 2.0,
-                    my - lh - self.clearance,
-                    mx + lw / 2.0,
-                    my - self.clearance,
-                )
-                # Candidate 2: Below
-                box_below = AABB(
-                    mx - lw / 2.0,
-                    my + self.clearance,
-                    mx + lw / 2.0,
-                    my + lh + self.clearance,
-                )
-                candidates.append((box_above, (mx, my - self.clearance), seg_rank, 0, seg_idx))
-                candidates.append((box_below, (mx, my + lh + self.clearance), seg_rank, 1, seg_idx))
-            else:
-                # Candidate 1: Right
-                box_right = AABB(
-                    mx + self.clearance,
-                    my - lh / 2.0,
-                    mx + lw + self.clearance,
-                    my + lh / 2.0,
-                )
-                # Candidate 2: Left
-                box_left = AABB(
-                    mx - lw - self.clearance,
-                    my - lh / 2.0,
-                    mx - self.clearance,
-                    my + lh / 2.0,
-                )
-                candidates.append(
-                    (
-                        box_right,
-                        (mx + self.clearance + lw / 2.0, my + lh / 2.0),
-                        seg_rank,
-                        0,
-                        seg_idx,
+            t_fractions = [0.5, 0.35, 0.65, 0.2, 0.8] if seg_len >= lw * 1.2 else [0.5]
+            for t_rank, t in enumerate(t_fractions):
+                mx = p1[0] + t * (p2[0] - p1[0])
+                my = p1[1] + t * (p2[1] - p1[1])
+
+                if is_horizontal:
+                    # Candidate 1: Above
+                    box_above = AABB(
+                        mx - lw / 2.0,
+                        my - lh - self.clearance,
+                        mx + lw / 2.0,
+                        my - self.clearance,
                     )
-                )
-                candidates.append(
-                    (
-                        box_left,
-                        (mx - self.clearance - lw / 2.0, my + lh / 2.0),
-                        seg_rank,
-                        1,
-                        seg_idx,
+                    # Candidate 2: Below
+                    box_below = AABB(
+                        mx - lw / 2.0,
+                        my + self.clearance,
+                        mx + lw / 2.0,
+                        my + lh + self.clearance,
                     )
-                )
+                    candidates.append(
+                        (box_above, (mx, my - self.clearance), seg_rank, 0, seg_idx, t_rank)
+                    )
+                    candidates.append(
+                        (box_below, (mx, my + lh + self.clearance), seg_rank, 1, seg_idx, t_rank)
+                    )
+                else:
+                    # Candidate 1: Right
+                    box_right = AABB(
+                        mx + self.clearance,
+                        my - lh / 2.0,
+                        mx + lw + self.clearance,
+                        my + lh / 2.0,
+                    )
+                    # Candidate 2: Left
+                    box_left = AABB(
+                        mx - lw - self.clearance,
+                        my - lh / 2.0,
+                        mx - self.clearance,
+                        my + lh / 2.0,
+                    )
+                    candidates.append(
+                        (
+                            box_right,
+                            (mx + self.clearance + lw / 2.0, my + lh / 2.0),
+                            seg_rank,
+                            0,
+                            seg_idx,
+                            t_rank,
+                        )
+                    )
+                    candidates.append(
+                        (
+                            box_left,
+                            (mx - self.clearance - lw / 2.0, my + lh / 2.0),
+                            seg_rank,
+                            1,
+                            seg_idx,
+                            t_rank,
+                        )
+                    )
 
         if not candidates:
             p = waypoints[0]
@@ -152,9 +169,9 @@ class LabelPlacementSolver:
             return p, box
 
         def score(
-            candidate: tuple[AABB, tuple[float, float], int, int, int],
-        ) -> tuple[int, int, int]:
-            box, _, seg_rank, side_rank, seg_idx = candidate
+            candidate: tuple[AABB, tuple[float, float], int, int, int, int],
+        ) -> tuple[float, int, int, int]:
+            box, _, seg_rank, side_rank, seg_idx, t_rank = candidate
             collisions = [
                 item
                 for item in spatial_index.query_intersects(box)
@@ -162,7 +179,17 @@ class LabelPlacementSolver:
                 and item[0] != f"LABEL_{stream_id}"
                 and item[0] != f"PIPE_{stream_id}_{seg_idx}"
             ]
-            return (len(collisions), seg_rank, side_rank)
+            penalty = 0.0
+            for item in collisions:
+                iid = str(item[0])
+                if iid.startswith("LABEL_"):
+                    penalty += 10000.0
+                elif iid.startswith("PIPE_"):
+                    penalty += 50.0
+                else:
+                    penalty += 5000.0
+            penalty += t_rank * 5.0
+            return (penalty, seg_rank, side_rank, t_rank)
 
         best_cand = min(candidates, key=score)
         return best_cand[1], best_cand[0]

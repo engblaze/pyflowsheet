@@ -709,14 +709,35 @@ class Flowsheet:
         for u in macro_units:
             if not getattr(u, "showTitle", True):
                 continue
-            unit_box = AABB(
-                u.position[0],
-                u.position[1],
-                u.position[0] + u.size[0],
-                u.position[1] + u.size[1],
-            )
+
             lw = max(len(u.id) * 8.0, 30.0)
             lh = float(getattr(u, "fontSize", 12.0))
+
+            if getattr(u, "has_explicit_text_anchor", False):
+                anchor_pos, align = u.getTextAnchor()
+                if align == "middle":
+                    lbl_x = anchor_pos[0] - lw / 2.0
+                elif align == "end":
+                    lbl_x = anchor_pos[0] - lw
+                else:
+                    lbl_x = anchor_pos[0]
+                lbl_y = anchor_pos[1] - lh
+                label_box = AABB(lbl_x, lbl_y, lbl_x + lw, lbl_y + lh)
+                spatial_index.insert(f"LABEL_{u.id}", label_box, data=u)
+                continue
+
+            min_ux = u.position[0]
+            min_uy = u.position[1]
+            max_ux = u.position[0] + u.size[0]
+            max_uy = u.position[1] + u.size[1]
+            for p in u.ports.values():
+                px, py = p.get_position()
+                min_ux = min(min_ux, px)
+                min_uy = min(min_uy, py)
+                max_ux = max(max_ux, px)
+                max_uy = max(max_uy, py)
+            unit_box = AABB(min_ux, min_uy, max_ux, max_uy)
+
             pos, label_box = label_solver.place_equipment_label(
                 unit_id=u.id,
                 unit_box=unit_box,
@@ -724,28 +745,32 @@ class Flowsheet:
                 spatial_index=spatial_index,
             )
             if label_box.min_y >= unit_box.max_y:
+                y_offset = (label_box.min_y + lh) - (u.position[1] + u.size[1])
                 u.setTextAnchor(
                     HorizontalLabelAlignment.Center,
                     VerticalLabelAlignment.Bottom,
-                    (0, 20),
+                    (0, y_offset),
                 )
             elif label_box.max_y <= unit_box.min_y:
+                y_offset = label_box.max_y - u.position[1]
                 u.setTextAnchor(
                     HorizontalLabelAlignment.Center,
                     VerticalLabelAlignment.Top,
-                    (0, -10),
+                    (0, y_offset),
                 )
             elif label_box.min_x >= unit_box.max_x:
+                x_offset = label_box.min_x - (u.position[0] + u.size[0])
                 u.setTextAnchor(
                     HorizontalLabelAlignment.RightOuter,
                     VerticalLabelAlignment.Center,
-                    (10, 0),
+                    (x_offset, 0),
                 )
             else:
+                x_offset = label_box.max_x - u.position[0]
                 u.setTextAnchor(
                     HorizontalLabelAlignment.LeftOuter,
                     VerticalLabelAlignment.Center,
-                    (-10, 0),
+                    (x_offset, 0),
                 )
             spatial_index.insert(f"LABEL_{u.id}", label_box, data=u)
 

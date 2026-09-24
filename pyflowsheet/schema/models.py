@@ -122,7 +122,7 @@ class EquipmentSchema(BaseModel):
     type: str = "Vessel"
     description: str = ""
     position: tuple[float, float] = (0.0, 0.0)
-    size: tuple[float, float] = (40.0, 40.0)
+    size: tuple[float, float] | None = None
     rotation: float = 0.0
     flip_horizontal: bool = False
     flip_vertical: bool = False

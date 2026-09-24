@@ -645,6 +645,12 @@ class OrthogonalRouter:
                 if nxt != end_grid and is_blocked(nxt):
                     continue
 
+                if target_box is not None and seg_intersects_box(curr, nxt, target_box, margin=0.0):
+                    continue
+
+                if source_box is not None and seg_intersects_box(curr, nxt, source_box, margin=0.0):
+                    continue
+
                 turned = 1 if (dx, dy) != (ndx, ndy) and (dx != 0 or dy != 0) else 0
                 step_cost = self.grid_size + turned * self.turn_penalty
 

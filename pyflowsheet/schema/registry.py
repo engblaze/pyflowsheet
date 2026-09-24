@@ -197,9 +197,10 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
         "id": eq.id,
         "name": eq.get_name(),
         "position": eq.position,
-        "size": eq.size,
         "description": eq.description,
     }
+    if eq.size is not None:
+        kwargs["size"] = eq.size
 
     if eq.type == "ControlValve":
         kwargs["body_type"] = eq.valve_type or "globe"
@@ -283,6 +284,7 @@ def instantiate_unit(eq: EquipmentSchema) -> UnitOperation:
 
         offset = eq.text_anchor.offset
         unit.setTextAnchor(h, v, offset)
+        unit.has_explicit_text_anchor = True
 
     if eq.layout_hints is not None:
         unit.layout_hints = eq.layout_hints
