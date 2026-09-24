@@ -10,7 +10,7 @@ def test_svg_group_id_sanitization(tmp_path):
     ctx = SvgContext(output_path)
 
     # These IDs normally fail or cause issues in svgwrite without sanitization
-    problematic_ids = ["UV/US", "Recovered IONP", "P&ID Tag #1", "100% Flow"]
+    problematic_ids = ["MF/NF", "Recovered Flocculant", "P&ID Tag #1", "100% Flow"]
 
     for gid in problematic_ids:
         ctx.startGroup(gid)
@@ -20,8 +20,8 @@ def test_svg_group_id_sanitization(tmp_path):
     svg_str = ctx.render(saveFile=True)
 
     assert os.path.exists(output_path)
-    assert 'id="UV_US"' in svg_str
-    assert 'id="Recovered_IONP"' in svg_str
+    assert 'id="MF_NF"' in svg_str
+    assert 'id="Recovered_Flocculant"' in svg_str
     assert 'id="P_ID_Tag__1"' in svg_str or 'id="P_ID_Tag__1"' in svg_str.replace(" ", "_")
     # Verify no un-sanitized spaces or slashes exist inside group IDs
     assert not re.search(r'<g\s+id="[^"]*[\s/][^"]*"', svg_str)
@@ -46,5 +46,5 @@ def test_svg_transformed_group_id_sanitization(tmp_path):
 
     svg_str = ctx.render(saveFile=True)
     assert os.path.exists(output_path)
-    assert 'id="UV_US_100__T"' in svg_str
+    assert 'id="MF_NF_100__T"' in svg_str
     assert not re.search(r'<g\s+id="[^"]*[\s/][^"]*"', svg_str)

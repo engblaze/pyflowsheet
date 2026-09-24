@@ -30,7 +30,7 @@ ISA_51_TAG_DESCRIPTIONS: dict[str, str] = {
     "PDT": "Differential Pressure Transmitter",
     "PDIC": "Diff. Pressure Controller",
     "PDI": "Differential Pressure Indicator",
-    "AIT": "Analytical Transmitter (pH/IONP)",
+    "AIT": "Analytical Indicating Transmitter",
     "AT": "Analytical Transmitter",
     "AIC": "Analytical Indicating Controller",
     "AI": "Analytical Indicator",

@@ -457,11 +457,11 @@ def test_drawing_legend_wt_pid_simple_pump_enumeration(tmp_path):
 
     pfd = Flowsheet(id="WT_PUMPS", name="Water Treatment Pumps")
     p101 = Pump(id="P-101", name="Influent Feed Pump")
-    p102 = ProgressiveCavityPump(id="P-102", name="IONP Dosing Pump")
+    p102 = ProgressiveCavityPump(id="P-102", name="Floc Dosing Pump")
     p103 = Pump(id="P-103", name="Slurry Transfer Pump")
     p105 = ProgressiveCavityPump(id="P-105", name="Float Sludge Pump")
     p106 = Pump(id="P-106", name="NF Booster Pump")
-    p107 = Pump(id="P-107", name="Regenerated IONP Pump")
+    p107 = Pump(id="P-107", name="Regenerated Floc Pump")
 
     for p in (p101, p102, p103, p105, p106, p107):
         pfd.unit(p)
