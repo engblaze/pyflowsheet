@@ -46,6 +46,7 @@ class DrawingFrame:
         show_legend: bool = True,
         show_notes: bool = True,
         custom_legend_entries: list[dict[str, Any]] | None = None,
+        process_streams: list[Any] | None = None,
         border: DrawingBorder | None = None,
         revision_block: RevisionBlock | None = None,
         legend: DrawingLegend | None = None,
@@ -79,6 +80,19 @@ class DrawingFrame:
         )
         self.custom_legend_entries: list[dict[str, Any]] = list(entries) if entries else []
 
+        p_streams = (
+            process_streams
+            if process_streams is not None
+            else (
+                settings_dict.get("drawing_frame", {}).get("process_streams")
+                if isinstance(settings_dict.get("drawing_frame"), dict)
+                else None
+            )
+            or settings_dict.get("process_streams")
+            or meta_dict.get("process_streams")
+        )
+        self.process_streams: list[Any] = list(p_streams) if p_streams else []
+
         self.border: DrawingBorder = border or DrawingBorder(cfg=self.cfg)
         self.revision_block: RevisionBlock = revision_block or RevisionBlock(
             rect=self.cfg.revision_block_rect,
@@ -87,6 +101,7 @@ class DrawingFrame:
         self.legend: DrawingLegend = legend or DrawingLegend(
             rect=self.cfg.legend_rect,
             custom_entries=self.custom_legend_entries,
+            process_streams=self.process_streams,
         )
         self.title_block: TitleBlock = title_block or TitleBlock(
             metadata=meta_dict,
@@ -148,6 +163,10 @@ class DrawingFrame:
         custom_legend_entries = df_settings.get(
             "custom_legend_entries", meta_dict.get("custom_legend_entries")
         )
+        process_streams = df_settings.get(
+            "process_streams",
+            meta_dict.get("process_streams", settings_dict.get("process_streams")),
+        )
 
         return cls(
             sheet_size=sheet_size,
@@ -160,6 +179,7 @@ class DrawingFrame:
             show_legend=show_legend,
             show_notes=show_notes,
             custom_legend_entries=custom_legend_entries,
+            process_streams=process_streams,
         )
 
     def get_bounds(self) -> list[float]:

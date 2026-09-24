@@ -79,7 +79,15 @@ class Flowsheet:
         self.unitOperations[unitoperation.id] = unitoperation
         return unitoperation
 
-    def connect(self, name, fromPort, toPort, line_type: str = "process"):
+    def connect(
+        self,
+        name,
+        fromPort,
+        toPort,
+        line_type: str = "process",
+        stream_name: str | None = None,
+        description: str = "",
+    ):
         """Connect two ports of two unit operations with a stream.
 
         Args:
@@ -88,6 +96,8 @@ class Flowsheet:
             toPort (Port): The destination port to which to route the stream
             line_type (string): ANSI/ISA-5.1 line type ('process', 'pneumatic',
                 'electric', 'digital', 'capillary')
+            stream_name (string, optional): Display name for the stream.
+            description (string, optional): Description of the stream.
         """
         if name in self.streams:
             raise ValueError(
@@ -96,7 +106,14 @@ class Flowsheet:
                 "access it directly with the flowsheet.streams[] accessor."
             )
 
-        self.streams[name] = Stream(name, fromPort, toPort, line_type=line_type)
+        self.streams[name] = Stream(
+            name,
+            fromPort,
+            toPort,
+            line_type=line_type,
+            name=stream_name,
+            description=description,
+        )
         return self.streams[name]
 
     def _calcGrid(self):
@@ -318,6 +335,7 @@ class Flowsheet:
         revision: str | None = None,
         notes: list[str] | None = None,
         revisions: list[dict[str, Any]] | None = None,
+        process_streams: list[Any] | None = None,
         metadata: dict[str, Any] | None = None,
         settings: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -331,6 +349,7 @@ class Flowsheet:
             revision: Revision level identifier.
             notes: List of general process notes.
             revisions: Revision history records.
+            process_streams: Process streams to list in the legend.
             metadata: Additional metadata dictionary.
             settings: Additional drawing frame settings dictionary.
             **kwargs: Extra metadata fields or display toggles (e.g. show_border, show_legend).
@@ -361,6 +380,8 @@ class Flowsheet:
             meta["notes"] = notes
         if revisions is not None:
             meta["revisions"] = revisions
+        if process_streams is not None:
+            meta["process_streams"] = process_streams
 
         sett: dict[str, Any] = dict(settings) if settings else {}
         sett_df: dict[str, Any] = (
@@ -375,6 +396,9 @@ class Flowsheet:
             "show_legend",
             "show_notes",
             "custom_legend_entries",
+            "process_streams",
+            "show_process_streams",
+            "two_column_sections",
         }
 
         for k, v in kwargs.items():
@@ -823,7 +847,16 @@ class Flowsheet:
             to_port = to_unit[s.to_endpoint.port]
 
             line_type = getattr(s, "line_type", "process")
-            flowsheet.connect(s.id, from_port, to_port, line_type=line_type)
+            s_name = getattr(s, "name", None)
+            s_desc = getattr(s, "description", "")
+            flowsheet.connect(
+                s.id,
+                from_port,
+                to_port,
+                line_type=line_type,
+                stream_name=s_name,
+                description=s_desc,
+            )
             stream_obj = flowsheet.streams[s.id]
 
             if s.manual_routing:

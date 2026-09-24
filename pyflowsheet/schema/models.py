@@ -51,6 +51,7 @@ class MetadataSchema(BaseModel):
     qa_date: str | None = None
     notes: list[str] = Field(default_factory=list)
     revisions: list[MetadataRevisionSchema] = Field(default_factory=list)
+    process_streams: list[Any] = Field(default_factory=list)
 
 
 class DrawingFrameSettingsSchema(BaseModel):
@@ -64,6 +65,7 @@ class DrawingFrameSettingsSchema(BaseModel):
     show_legend: bool = True
     show_notes: bool = True
     custom_legend_entries: list[dict[str, Any]] = Field(default_factory=list)
+    process_streams: list[Any] = Field(default_factory=list)
 
 
 class PortSchema(BaseModel):

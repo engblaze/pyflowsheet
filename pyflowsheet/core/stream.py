@@ -5,8 +5,18 @@ from .pathfinder import Pathfinder, compressPath
 
 
 class Stream:
-    def __init__(self, id, fromPort, toPort, line_type: str = "process"):
+    def __init__(
+        self,
+        id,
+        fromPort,
+        toPort,
+        line_type: str = "process",
+        name: str | None = None,
+        description: str = "",
+    ):
         self.id = id
+        self.name = name
+        self.description = description
         self.lineColor = (0, 0, 0, 255)
         self.textColor = (0, 0, 0, 255)
         self.lineSize = 2
